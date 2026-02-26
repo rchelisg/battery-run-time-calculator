@@ -218,7 +218,7 @@ body {
 .pack-card h2 {
   writing-mode: vertical-rl;        /* characters flow top → bottom first… */
   transform: rotate(180deg);        /* …then flip so they read upward */
-  font-size: 1.4rem;
+  font-size: 0.95rem;
   font-weight: 700;                 /* bold */
   color: var(--color-primary);
   margin-bottom: 0;                 /* override .card h2 margin */
@@ -254,11 +254,11 @@ body {
 
 /* Small column heading above each input */
 .pack-label {
-  font-size: 0.75rem;
+  font-size: 0.65rem;
   font-weight: 600;
   color: var(--color-text-secondary);
   text-align: center;
-  margin-bottom: 0.1rem;  /* tighter gap between label and input */
+  margin-bottom: 0.05rem;  /* tighter gap between label and input */
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -267,8 +267,8 @@ body {
 /* Compact input — overrides base .field-input sizing */
 .pack-input {
   text-align: center;
-  padding: 0.15rem 0.25rem;  /* reduced top/bottom space */
-  min-height: 36px;          /* tighter than default 44px */
+  padding: 0.08rem 0.2rem;   /* further reduced for compactness */
+  min-height: 26px;          /* tighter than default 44px */
 }
 
 /* Narrow column for the single-digit N (Cells) field */
@@ -298,7 +298,7 @@ body {
 /* Shared error strip — full content width, fixed height, never shifts card size */
 /* Specificity .pack-card .pack-error (0,2,0) beats .card p (0,1,1) → correct red */
 .pack-card .pack-error {
-  height: 1.5rem;          /* fixed: always reserves exactly one text line */
+  height: 1rem;            /* fixed: always reserves exactly one text line */
   overflow: hidden;        /* clip if somehow overflows */
   margin-top: 0.1rem;      /* minimal gap above error strip */
   font-size: var(--font-size-sm);
@@ -339,7 +339,7 @@ body {
 .load-card h2 {
   writing-mode: vertical-rl;
   transform: rotate(180deg);
-  font-size: 1.2rem;
+  font-size: 0.85rem;
   font-weight: 700;
   color: var(--color-primary);
   margin-bottom: 0;           /* override .card h2 margin */
@@ -357,13 +357,13 @@ body {
   flex-direction: column;
 }
 
-/* +/- button row — fixed height so every card has uniform layout */
+/* +/- button row — only shown on last card (display:none on others) */
 .load-controls {
   display: flex;
   justify-content: flex-end;
   gap: 0.2rem;
-  height: 1.6rem;        /* always reserves this space, even when hidden */
-  margin-bottom: 0.1rem;
+  height: 1.2rem;        /* compact; non-last cards collapse via display:none */
+  margin-bottom: 0.05rem;
 }
 
 /* Individual +/- button */
@@ -414,11 +414,11 @@ body {
 
 /* Column heading */
 .load-label {
-  font-size: 0.75rem;
+  font-size: 0.65rem;
   font-weight: 600;
   color: var(--color-text-secondary);
   text-align: center;
-  margin-bottom: 0.1rem;
+  margin-bottom: 0.05rem;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -427,8 +427,8 @@ body {
 /* Compact number input — same sizing as pack-input */
 .load-input {
   text-align: center;
-  padding: 0.15rem 0.25rem;
-  min-height: 36px;
+  padding: 0.08rem 0.2rem;
+  min-height: 26px;
 }
 
 /* Inline row: input + unit side by side */
@@ -448,7 +448,7 @@ body {
 
 /* Shared error strip — specificity (0,2,0) beats .card p (0,1,1) */
 .load-card .load-error {
-  height: 1.5rem;
+  height: 1rem;
   overflow: hidden;
   margin-top: 0.1rem;
   font-size: var(--font-size-sm);
@@ -456,23 +456,36 @@ body {
   line-height: 1.4;
 }
 
-/* ── LOAD output — 5-line tabular summary ── */
+/* ── LOAD output — tabular summary with header ── */
 .load-output {
-  padding: var(--spacing-sm) var(--spacing-md);
+  padding: 0.35rem var(--spacing-sm);   /* compact top/bottom padding */
+}
+
+/* Header row: Nom / Min / Max column labels */
+.load-out-header {
+  display: flex;
+  align-items: baseline;
+  font-size: 0.7rem;
+  font-family: monospace;
+  line-height: 1.4;
+  flex-wrap: nowrap;
+  color: var(--color-text-secondary);
+  margin-bottom: 0.15rem;
+  border-bottom: 1px solid var(--color-border);
+  padding-bottom: 0.1rem;
 }
 
 /* One row per LOAD slot */
 .load-out-row {
   display: flex;
   align-items: baseline;
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   font-family: monospace;
-  line-height: 1.65;
-  min-height: 1.32rem;  /* 0.8rem × 1.65 — reserves space even when empty */
+  line-height: 1.45;
   flex-wrap: nowrap;
 }
 
-/* "LOAD x:" label at start of row */
+/* "LOAD x:" label — same width in header and data rows */
 .load-out-label {
   flex: 0 0 auto;
   min-width: 7ch;
@@ -480,24 +493,28 @@ body {
   margin-right: 0.2em;
 }
 
-/* 4-character-wide cell for each numeric value */
-.load-out-val {
-  flex: 0 0 4ch;
+/* Nominal column — extra right-margin creates visual gap before Min */
+.load-out-nom,
+.load-out-hdr-nom {
+  flex: 0 0 5ch;
   text-align: right;
+  margin-right: 1.5em;
 }
 
-/* Unit "W" after each value */
-.load-out-unit {
-  flex: 0 0 auto;
-  margin-right: 0.4em;
+/* Min / Max columns */
+.load-out-rng,
+.load-out-hdr-rng {
+  flex: 0 0 5ch;
+  text-align: right;
+  margin-right: 0.3em;
 }
 
 /* Colours: entry present = dark grey; no entry = light grey */
-.load-out-val.has-value,
-.load-out-unit.has-value { color: #616161; }
+.load-out-nom.has-value,
+.load-out-rng.has-value { color: #616161; }
 
-.load-out-val.no-value,
-.load-out-unit.no-value  { color: #BDBDBD; }
+.load-out-nom.no-value,
+.load-out-rng.no-value  { color: #BDBDBD; }
 
 /* ── Responsive scale-up for larger screens ─── */
 /* Tablets and desktops (768 px and up) */

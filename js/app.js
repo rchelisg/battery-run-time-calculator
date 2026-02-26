@@ -245,18 +245,16 @@ function setLoadFieldState(i, inputEl, fieldKey, message, isError = false) {
   showLoadError(i);
 }
 
-// ── Update one output cell (value span + unit span) ──
+// ── Update one output cell (combined value + unit) ──
 function setOutCell(i, field, rawVal) {
-  const valEl  = document.getElementById(`lo${i}-${field}`);
-  const unitEl = document.getElementById(`lo${i}-${field}-unit`);
-  if (!valEl) return;
+  const el = document.getElementById(`lo${i}-${field}`);
+  if (!el) return;
 
+  const isNom  = (field === 'L');
+  const cls    = isNom ? 'load-out-nom' : 'load-out-rng';
   const hasVal = rawVal !== '';
-  valEl.textContent = hasVal ? rawVal : '—';
-  valEl.className   = `load-out-val ${hasVal ? 'has-value' : 'no-value'}`;
-  if (unitEl) {
-    unitEl.className = `load-out-unit ${hasVal ? 'has-value' : 'no-value'}`;
-  }
+  el.textContent = hasVal ? rawVal + 'W' : '—';
+  el.className   = `${cls} ${hasVal ? 'has-value' : 'no-value'}`;
 }
 
 // ── Update all 5 output rows ──
@@ -282,8 +280,8 @@ function updateLoadControls() {
 
     const isLast = (i === loadCount - 1);
 
-    // All cards reserve controls height; only last card shows its buttons
-    ctrlDiv.style.visibility = isLast ? 'visible' : 'hidden';
+    // Only last card shows controls; non-last cards collapse the controls bar entirely
+    ctrlDiv.style.display = isLast ? 'flex' : 'none';
 
     if (isLast) {
       if (loadCount === 1) {
