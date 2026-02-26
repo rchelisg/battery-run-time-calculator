@@ -317,11 +317,11 @@ body {
 }
 
 /* ── LOAD cards container ───────────────────── */
-/* Vertical stack with the same gap as app-main */
+/* Tight gap between adjacent LOAD cards — half the app-main gap */
 #load-cards-container {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-md);
+  gap: 0.5rem;
 }
 
 /* ── LOAD card — same compact layout as PACK ── */
@@ -493,21 +493,28 @@ body {
   margin-right: 0.2em;
 }
 
-/* Nominal column — extra right-margin creates visual gap before Min */
+/* "(W)" in the header sits in the label column — centre it */
+.load-out-header .load-out-label {
+  text-align: center;
+}
+
+/* Nominal column — shared sizing; data right-aligns, header centres */
 .load-out-nom,
 .load-out-hdr-nom {
   flex: 0 0 5ch;
-  text-align: right;
   margin-right: 1.5em;
 }
+.load-out-nom     { text-align: right;  }
+.load-out-hdr-nom { text-align: center; }
 
-/* Min / Max columns */
+/* Min / Max columns — shared sizing; data right-aligns, header centres */
 .load-out-rng,
 .load-out-hdr-rng {
   flex: 0 0 5ch;
-  text-align: right;
   margin-right: 0.3em;
 }
+.load-out-rng     { text-align: right;  }
+.load-out-hdr-rng { text-align: center; }
 
 /* Colours: entry present = dark grey; no entry = light grey */
 .load-out-nom.has-value,
