@@ -10,7 +10,11 @@
       "Bash(powershell -Command \"Get-Command python* -ErrorAction SilentlyContinue | Select-Object Name, Source\")",
       "Bash(powershell -Command:*)",
       "Bash(dir:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(gh run:*)",
+      "WebFetch(domain:rchelisg.github.io)"
     ]
   }
 }
