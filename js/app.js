@@ -6,7 +6,7 @@
 // Must be registered from the page so the browser knows to use it
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/service-worker.js')
+    navigator.serviceWorker.register('./service-worker.js')
       .then(registration => {
         console.log('[App] Service worker registered. Scope:', registration.scope);
         updateSwStatus('✅ Service worker active — app works offline!');
