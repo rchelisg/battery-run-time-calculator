@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git pull:*)",
+      "Bash(python:*)",
+      "Bash(py:*)",
+      "Bash(node --version:*)",
+      "Bash(where:*)",
+      "Bash(\"C:\\\\Users\\\\jinl\\\\AppData\\\\Local\\\\Microsoft\\\\WindowsApps\\\\python3.exe\" --version)",
+      "Bash(powershell -Command \"Get-Command python* -ErrorAction SilentlyContinue | Select-Object Name, Source\")",
+      "Bash(powershell -Command:*)",
+      "Bash(dir:*)",
+      "Bash(git add:*)"
+    ]
+  }
+}

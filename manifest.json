@@ -1,0 +1,17 @@
+{
+  "name": "Battery Run Time Calculator",
+  "short_name": "Battery Calc",
+  "description": "Calculate how long your battery will last based on capacity and load.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#4CAF50",
+  "icons": [
+    {
+      "src": "icons/icon.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
