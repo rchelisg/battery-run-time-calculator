@@ -15,7 +15,18 @@
       "Bash(git push:*)",
       "Bash(gh run:*)",
       "WebFetch(domain:rchelisg.github.io)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(gh pr:*)",
+      "Bash(powershell.exe -Command \"Get-Command python, python3, node, npm, php -ErrorAction SilentlyContinue | Select-Object Name, Source\")",
+      "Bash(powershell.exe -Command \"Test-NetConnection -ComputerName localhost -Port 8080 | Select-Object TcpTestSucceeded\")",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(powershell.exe -Command:*)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(npx --version:*)",
+      "Bash(where.exe:*)",
+      "Bash(powershell.exe -ExecutionPolicy Bypass -Command \"Start-Sleep -Seconds 1; Write-Host ''PS works''\")",
+      "Bash(curl:*)"
     ]
   }
 }

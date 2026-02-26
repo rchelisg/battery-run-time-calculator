@@ -6,7 +6,7 @@
 
   <!-- Page description -->
   <meta name="description" content="Calculate how long your battery will last based on capacity and load.">
-  <meta name="theme-color" content="#4CAF50">
+  <meta name="theme-color" content="#1976D2">
 
   <!-- Apple PWA meta tags (required for iPhone) -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -32,14 +32,77 @@
     </header>
 
     <main class="app-main">
+
+      <!-- ── PACK card ──────────────────────────── -->
+      <div class="card pack-card">
+        <h2>PACK</h2>
+
+        <!-- Content area: input row + error strip -->
+        <div class="pack-content">
+
+          <div class="pack-row">
+
+            <!-- N: cells in series — single digit only -->
+            <div class="pack-field pack-field-narrow">
+              <label class="pack-label" for="input-N">Cells</label>
+              <input class="field-input pack-input" type="text" id="input-N"
+                     inputmode="numeric" maxlength="1" value="7">
+            </div>
+
+            <!-- C: nominal cell capacity -->
+            <div class="pack-field">
+              <label class="pack-label" for="input-C">Nominal</label>
+              <input class="field-input pack-input" type="number" id="input-C"
+                     inputmode="numeric" min="100" max="8000" step="1" value="2000">
+              <span class="pack-unit">mAh</span>
+            </div>
+
+            <!-- Cmin: minimum cell capacity (optional) -->
+            <div class="pack-field">
+              <label class="pack-label" for="input-Cmin">Min</label>
+              <input class="field-input pack-input" type="number" id="input-Cmin"
+                     inputmode="numeric" step="1">
+              <span class="pack-unit">mAh</span>
+            </div>
+
+            <!-- Cmax: maximum cell capacity (optional) -->
+            <div class="pack-field">
+              <label class="pack-label" for="input-Cmax">Max</label>
+              <input class="field-input pack-input" type="number" id="input-Cmax"
+                     inputmode="numeric" step="1">
+              <span class="pack-unit">mAh</span>
+            </div>
+
+          </div><!-- /pack-row -->
+
+          <!-- Shared error strip — fixed height so card never resizes -->
+          <p class="pack-error" id="pack-error"></p>
+
+        </div><!-- /pack-content -->
+      </div><!-- /pack-card -->
+
+      <!-- ── LOAD cards container ─────────────── -->
+      <div id="load-cards-container"></div>
+
+      <!-- ── LOAD output ──────────────────────── -->
+      <div class="card load-output">
+        <p class="load-output-line" id="load-out-0"></p>
+        <p class="load-output-line" id="load-out-1"></p>
+        <p class="load-output-line" id="load-out-2"></p>
+        <p class="load-output-line" id="load-out-3"></p>
+        <p class="load-output-line" id="load-out-4"></p>
+      </div>
+
+      <!-- ── Status card ────────────────────────── -->
       <div class="card status-card">
         <h2>App Status</h2>
         <p id="sw-status">Checking service worker…</p>
       </div>
+
     </main>
 
     <footer class="app-footer">
-      <p>Battery Calc &copy; 2026</p>
+      <p>BRTC &copy; 2026 V1.0</p>
     </footer>
 
   </div>
