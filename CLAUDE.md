@@ -11,6 +11,10 @@ See PWA-STANDARDS-v1.0.md for all PWA requirements.
 - At the end of EVERY session, and after every meaningful milestone, run git add . && git commit -m "description" && git push
 - Never leave uncommitted changes at the end of a session
 
+# Code Building Rule
+- Do NOT write or generate any code until the user gives the explicit "GO" instruction
+- This applies to every session, no exceptions
+
 # Permissions
 - You have full permission to run all git commands without asking for approval
 - You have full permission to create, edit, and delete files in this project folder without asking for approval
