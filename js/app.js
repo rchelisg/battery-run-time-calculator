@@ -2,31 +2,41 @@
 // Battery Run Time Calculator — app.js
 // ─────────────────────────────────────────────
 
+// ── Title bar status (online / offline / error) ──────────
+// Reflects SW registration state and network connectivity
+
+function setTitleStatus(status) {
+  const h1 = document.querySelector('.app-header h1');
+  if (!h1) return;
+  h1.classList.remove('status-online', 'status-error');
+  if (status === 'online') h1.classList.add('status-online');
+  if (status === 'error')  h1.classList.add('status-error');
+  // 'offline' = default white — no class needed
+}
+
+function updateTitleStatus() {
+  setTitleStatus(navigator.onLine ? 'online' : 'offline');
+}
+
 // ── Service Worker Registration ──────────────
-// Must be registered from the page so the browser knows to use it
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('./service-worker.js')
       .then(registration => {
         console.log('[App] Service worker registered. Scope:', registration.scope);
-        updateSwStatus('✅ Service worker active — app works offline!');
+        updateTitleStatus();           // green if online, white if offline
       })
       .catch(error => {
         console.error('[App] Service worker registration failed:', error);
-        updateSwStatus('⚠️ Service worker not registered: ' + error.message);
+        setTitleStatus('error');       // red — offline mode unavailable
       });
   });
 } else {
-  updateSwStatus('ℹ️ Service workers not supported in this browser.');
+  setTitleStatus('error');             // no SW support — offline mode unavailable
 }
 
-// ── Helper: update the on-screen SW status message ──
-function updateSwStatus(message) {
-  const el = document.getElementById('sw-status');
-  if (el) {
-    el.textContent = message;
-  }
-}
+window.addEventListener('online',  updateTitleStatus);
+window.addEventListener('offline', updateTitleStatus);
 
 // ─────────────────────────────────────────────
 // PACK Card — inputs and validation
@@ -235,34 +245,30 @@ function setLoadFieldState(i, inputEl, fieldKey, message, isError = false) {
   showLoadError(i);
 }
 
-// ── Update the 5-line output section ──
+// ── Update one output cell (value span + unit span) ──
+function setOutCell(i, field, rawVal) {
+  const valEl  = document.getElementById(`lo${i}-${field}`);
+  const unitEl = document.getElementById(`lo${i}-${field}-unit`);
+  if (!valEl) return;
+
+  const hasVal = rawVal !== '';
+  valEl.textContent = hasVal ? rawVal : '—';
+  valEl.className   = `load-out-val ${hasVal ? 'has-value' : 'no-value'}`;
+  if (unitEl) {
+    unitEl.className = `load-out-unit ${hasVal ? 'has-value' : 'no-value'}`;
+  }
+}
+
+// ── Update all 5 output rows ──
 function updateLoadOutput() {
   for (let i = 0; i < LOAD_MAX; i++) {
-    const lineEl = document.getElementById(`load-out-${i}`);
-    if (!lineEl) continue;
-
-    if (i >= loadCount) {
-      lineEl.textContent = '';
-      continue;
-    }
-
     const lEl    = document.getElementById(`input-L${i}`);
     const lminEl = document.getElementById(`input-Lmin${i}`);
     const lmaxEl = document.getElementById(`input-Lmax${i}`);
 
-    const l    = lEl    ? lEl.value.trim()    : '';
-    const lmin = lminEl ? lminEl.value.trim() : '';
-    const lmax = lmaxEl ? lmaxEl.value.trim() : '';
-
-    if (!l && !lmin && !lmax) {
-      lineEl.textContent = `LOAD${i}: —`;
-    } else {
-      let txt = `LOAD${i}:`;
-      if (l)    txt += `  L=${l}W`;
-      if (lmin) txt += `  Lmin=${lmin}W`;
-      if (lmax) txt += `  Lmax=${lmax}W`;
-      lineEl.textContent = txt;
-    }
+    setOutCell(i, 'L',    lEl    ? lEl.value.trim() : '');
+    setOutCell(i, 'Lmin', lminEl ? lminEl.value.trim() : '');
+    setOutCell(i, 'Lmax', lmaxEl ? lmaxEl.value.trim() : '');
   }
 }
 
@@ -489,7 +495,7 @@ function addLoadCard() {
   card.className = 'card load-card';
   card.id = `load-card-${i}`;
   card.innerHTML = `
-    <h2>LOAD${i}</h2>
+    <h2>LOAD ${i}</h2>
     <div class="load-content">
       <div class="load-controls" id="load-controls-${i}">
         <button class="load-btn load-btn-minus" id="load-minus-${i}" aria-label="Remove load card">−</button>
@@ -498,21 +504,27 @@ function addLoadCard() {
       <div class="load-row">
         <div class="load-field">
           <label class="load-label" for="input-L${i}">Nominal</label>
-          <input class="field-input load-input" type="number"
-                 id="input-L${i}" inputmode="decimal" step="0.1">
-          <span class="load-unit">W</span>
+          <div class="load-input-row">
+            <input class="field-input load-input" type="number"
+                   id="input-L${i}" inputmode="decimal" step="0.1">
+            <span class="load-unit">W</span>
+          </div>
         </div>
         <div class="load-field">
           <label class="load-label" for="input-Lmin${i}">Min</label>
-          <input class="field-input load-input" type="number"
-                 id="input-Lmin${i}" inputmode="decimal" step="0.1">
-          <span class="load-unit">W</span>
+          <div class="load-input-row">
+            <input class="field-input load-input" type="number"
+                   id="input-Lmin${i}" inputmode="decimal" step="0.1">
+            <span class="load-unit">W</span>
+          </div>
         </div>
         <div class="load-field">
           <label class="load-label" for="input-Lmax${i}">Max</label>
-          <input class="field-input load-input" type="number"
-                 id="input-Lmax${i}" inputmode="decimal" step="0.1">
-          <span class="load-unit">W</span>
+          <div class="load-input-row">
+            <input class="field-input load-input" type="number"
+                   id="input-Lmax${i}" inputmode="decimal" step="0.1">
+            <span class="load-unit">W</span>
+          </div>
         </div>
       </div>
       <p class="load-error" id="load-error-${i}"></p>

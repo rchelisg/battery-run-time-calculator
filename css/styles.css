@@ -85,7 +85,12 @@ body {
   font-size: 1.05rem;                /* slightly reduced from 1.25rem */
   font-weight: 600;
   letter-spacing: 0.01em;
+  color: #ffffff;                    /* default = offline = white */
 }
+
+/* Title bar status colours — toggled via JS class on h1 */
+.app-header h1.status-online { color: #69F0AE; }  /* bright green on blue */
+.app-header h1.status-error  { color: #FF5252; }  /* bright red on blue  */
 
 /* ── Main content ───────────────────────────── */
 .app-main {
@@ -115,15 +120,6 @@ body {
   line-height: 1.6;
 }
 
-/* Status card — slightly different accent */
-.status-card h2 {
-  font-size: var(--font-size-lg);
-}
-
-.status-card p {
-  font-size: var(--font-size-sm);
-  font-family: monospace;
-}
 
 /* ── Field rows (shared by PACK and future cards) ── */
 
@@ -284,13 +280,19 @@ body {
   width: 2.6rem;             /* just wide enough for one digit */
 }
 
-/* Small unit label below the input (mAh) */
+/* Inline row: input + unit side by side */
+.pack-input-row {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+}
+
+/* Unit label inline to the right of the input */
 .pack-unit {
   font-size: 0.7rem;
   color: var(--color-text-secondary);
-  text-align: center;
-  margin-top: 0.05rem;  /* minimal gap between input and unit */
-  line-height: 1;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 /* Shared error strip — full content width, fixed height, never shifts card size */
@@ -429,13 +431,19 @@ body {
   min-height: 36px;
 }
 
-/* Small unit label below input */
+/* Inline row: input + unit side by side */
+.load-input-row {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+}
+
+/* Unit label inline to the right of the input */
 .load-unit {
   font-size: 0.7rem;
   color: var(--color-text-secondary);
-  text-align: center;
-  margin-top: 0.05rem;
-  line-height: 1;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 /* Shared error strip — specificity (0,2,0) beats .card p (0,1,1) */
@@ -448,21 +456,48 @@ body {
   line-height: 1.4;
 }
 
-/* ── LOAD output — 5-line fixed-height summary ── */
+/* ── LOAD output — 5-line tabular summary ── */
 .load-output {
   padding: var(--spacing-sm) var(--spacing-md);
 }
 
-.load-output-line {
+/* One row per LOAD slot */
+.load-out-row {
+  display: flex;
+  align-items: baseline;
   font-size: 0.8rem;
   font-family: monospace;
-  color: var(--color-text);
   line-height: 1.65;
-  min-height: 1.32rem;   /* 0.8rem × 1.65 — reserves space for empty lines */
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  min-height: 1.32rem;  /* 0.8rem × 1.65 — reserves space even when empty */
+  flex-wrap: nowrap;
 }
+
+/* "LOAD x:" label at start of row */
+.load-out-label {
+  flex: 0 0 auto;
+  min-width: 7ch;
+  color: var(--color-text-secondary);
+  margin-right: 0.2em;
+}
+
+/* 4-character-wide cell for each numeric value */
+.load-out-val {
+  flex: 0 0 4ch;
+  text-align: right;
+}
+
+/* Unit "W" after each value */
+.load-out-unit {
+  flex: 0 0 auto;
+  margin-right: 0.4em;
+}
+
+/* Colours: entry present = dark grey; no entry = light grey */
+.load-out-val.has-value,
+.load-out-unit.has-value { color: #616161; }
+
+.load-out-val.no-value,
+.load-out-unit.no-value  { color: #BDBDBD; }
 
 /* ── Responsive scale-up for larger screens ─── */
 /* Tablets and desktops (768 px and up) */

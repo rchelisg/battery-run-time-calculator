@@ -52,25 +52,31 @@
             <!-- C: nominal cell capacity -->
             <div class="pack-field">
               <label class="pack-label" for="input-C">Nominal</label>
-              <input class="field-input pack-input" type="number" id="input-C"
-                     inputmode="numeric" min="100" max="8000" step="1" value="2000">
-              <span class="pack-unit">mAh</span>
+              <div class="pack-input-row">
+                <input class="field-input pack-input" type="number" id="input-C"
+                       inputmode="numeric" min="100" max="8000" step="1" value="2000">
+                <span class="pack-unit">mAh</span>
+              </div>
             </div>
 
             <!-- Cmin: minimum cell capacity (optional) -->
             <div class="pack-field">
               <label class="pack-label" for="input-Cmin">Min</label>
-              <input class="field-input pack-input" type="number" id="input-Cmin"
-                     inputmode="numeric" step="1">
-              <span class="pack-unit">mAh</span>
+              <div class="pack-input-row">
+                <input class="field-input pack-input" type="number" id="input-Cmin"
+                       inputmode="numeric" step="1">
+                <span class="pack-unit">mAh</span>
+              </div>
             </div>
 
             <!-- Cmax: maximum cell capacity (optional) -->
             <div class="pack-field">
               <label class="pack-label" for="input-Cmax">Max</label>
-              <input class="field-input pack-input" type="number" id="input-Cmax"
-                     inputmode="numeric" step="1">
-              <span class="pack-unit">mAh</span>
+              <div class="pack-input-row">
+                <input class="field-input pack-input" type="number" id="input-Cmax"
+                       inputmode="numeric" step="1">
+                <span class="pack-unit">mAh</span>
+              </div>
             </div>
 
           </div><!-- /pack-row -->
@@ -86,18 +92,38 @@
 
       <!-- ── LOAD output ──────────────────────── -->
       <div class="card load-output">
-        <p class="load-output-line" id="load-out-0"></p>
-        <p class="load-output-line" id="load-out-1"></p>
-        <p class="load-output-line" id="load-out-2"></p>
-        <p class="load-output-line" id="load-out-3"></p>
-        <p class="load-output-line" id="load-out-4"></p>
+        <div class="load-out-row" id="load-out-0">
+          <span class="load-out-label">LOAD 0:</span>
+          <span class="load-out-val no-value" id="lo0-L">—</span><span class="load-out-unit no-value" id="lo0-L-unit">W</span>
+          <span class="load-out-val no-value" id="lo0-Lmin">—</span><span class="load-out-unit no-value" id="lo0-Lmin-unit">W</span>
+          <span class="load-out-val no-value" id="lo0-Lmax">—</span><span class="load-out-unit no-value" id="lo0-Lmax-unit">W</span>
+        </div>
+        <div class="load-out-row" id="load-out-1">
+          <span class="load-out-label">LOAD 1:</span>
+          <span class="load-out-val no-value" id="lo1-L">—</span><span class="load-out-unit no-value" id="lo1-L-unit">W</span>
+          <span class="load-out-val no-value" id="lo1-Lmin">—</span><span class="load-out-unit no-value" id="lo1-Lmin-unit">W</span>
+          <span class="load-out-val no-value" id="lo1-Lmax">—</span><span class="load-out-unit no-value" id="lo1-Lmax-unit">W</span>
+        </div>
+        <div class="load-out-row" id="load-out-2">
+          <span class="load-out-label">LOAD 2:</span>
+          <span class="load-out-val no-value" id="lo2-L">—</span><span class="load-out-unit no-value" id="lo2-L-unit">W</span>
+          <span class="load-out-val no-value" id="lo2-Lmin">—</span><span class="load-out-unit no-value" id="lo2-Lmin-unit">W</span>
+          <span class="load-out-val no-value" id="lo2-Lmax">—</span><span class="load-out-unit no-value" id="lo2-Lmax-unit">W</span>
+        </div>
+        <div class="load-out-row" id="load-out-3">
+          <span class="load-out-label">LOAD 3:</span>
+          <span class="load-out-val no-value" id="lo3-L">—</span><span class="load-out-unit no-value" id="lo3-L-unit">W</span>
+          <span class="load-out-val no-value" id="lo3-Lmin">—</span><span class="load-out-unit no-value" id="lo3-Lmin-unit">W</span>
+          <span class="load-out-val no-value" id="lo3-Lmax">—</span><span class="load-out-unit no-value" id="lo3-Lmax-unit">W</span>
+        </div>
+        <div class="load-out-row" id="load-out-4">
+          <span class="load-out-label">LOAD 4:</span>
+          <span class="load-out-val no-value" id="lo4-L">—</span><span class="load-out-unit no-value" id="lo4-L-unit">W</span>
+          <span class="load-out-val no-value" id="lo4-Lmin">—</span><span class="load-out-unit no-value" id="lo4-Lmin-unit">W</span>
+          <span class="load-out-val no-value" id="lo4-Lmax">—</span><span class="load-out-unit no-value" id="lo4-Lmax-unit">W</span>
+        </div>
       </div>
 
-      <!-- ── Status card ────────────────────────── -->
-      <div class="card status-card">
-        <h2>App Status</h2>
-        <p id="sw-status">Checking service worker…</p>
-      </div>
 
     </main>
 
