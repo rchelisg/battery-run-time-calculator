@@ -301,7 +301,7 @@ body {
   height: 1rem;            /* fixed: always reserves exactly one text line */
   overflow: hidden;        /* clip if somehow overflows */
   margin-top: 0.1rem;      /* minimal gap above error strip */
-  font-size: var(--font-size-sm);
+  font-size: 0.7rem;
   color: #CC0000;
   line-height: 1.4;
 }
@@ -451,7 +451,7 @@ body {
   height: 1rem;
   overflow: hidden;
   margin-top: 0.1rem;
-  font-size: var(--font-size-sm);
+  font-size: 0.7rem;
   color: #CC0000;
   line-height: 1.4;
 }
@@ -462,10 +462,11 @@ body {
 }
 
 /* Header row: Nom / Min / Max column labels */
+/* font-size MUST match .load-out-row so ch-based flex widths align */
 .load-out-header {
   display: flex;
   align-items: baseline;
-  font-size: 0.7rem;
+  font-size: 0.78rem;
   font-family: monospace;
   line-height: 1.4;
   flex-wrap: nowrap;

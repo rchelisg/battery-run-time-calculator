@@ -253,7 +253,7 @@ function setOutCell(i, field, rawVal) {
   const isNom  = (field === 'L');
   const cls    = isNom ? 'load-out-nom' : 'load-out-rng';
   const hasVal = rawVal !== '';
-  el.textContent = hasVal ? rawVal + 'W' : '—';
+  el.textContent = hasVal ? rawVal : '—';
   el.className   = `${cls} ${hasVal ? 'has-value' : 'no-value'}`;
 }
 
@@ -280,8 +280,9 @@ function updateLoadControls() {
 
     const isLast = (i === loadCount - 1);
 
-    // Only last card shows controls; non-last cards collapse the controls bar entirely
-    ctrlDiv.style.display = isLast ? 'flex' : 'none';
+    // All cards reserve the controls height; only last card's buttons are visible
+    ctrlDiv.style.display    = 'flex';
+    ctrlDiv.style.visibility = isLast ? 'visible' : 'hidden';
 
     if (isLast) {
       if (loadCount === 1) {
@@ -319,8 +320,8 @@ function validateL(i) {
 
   if (raw === '') {
     setLoadFieldState(i, inputEl, 'L', '');
-    validateLmin(i);
-    validateLmax(i);
+    validateLmin(i, true);
+    validateLmax(i, true);
     updateLoadOutput();
     return true;
   }
@@ -333,13 +334,13 @@ function validateL(i) {
   }
   if (val <= 0) {
     setLoadFieldState(i, inputEl, 'L', 'Nominal must be > 0 W', true);
-    validateLmin(i); validateLmax(i);
+    validateLmin(i, true); validateLmax(i, true);
     updateLoadOutput();
     return false;
   }
   if (val > 750) {
     setLoadFieldState(i, inputEl, 'L', 'Nominal must be ≤ 750 W', true);
-    validateLmin(i); validateLmax(i);
+    validateLmin(i, true); validateLmax(i, true);
     updateLoadOutput();
     return false;
   }
@@ -347,7 +348,7 @@ function validateL(i) {
     setLoadFieldState(i, inputEl, 'L',
       val > 20 ? 'Values > 20 W must be whole numbers'
                : 'Values ≤ 20 W: max 1 decimal place', true);
-    validateLmin(i); validateLmax(i);
+    validateLmin(i, true); validateLmax(i, true);
     updateLoadOutput();
     return false;
   }
@@ -360,105 +361,135 @@ function validateL(i) {
 }
 
 // ── Validate Lmin(i) — minimum load ──
-function validateLmin(i) {
+// recheck=true: called from validateLmax; skip the return cross-call to avoid recursion
+function validateLmin(i, recheck = false) {
   const inputEl = document.getElementById(`input-Lmin${i}`);
   if (!inputEl) return true;
   const raw = inputEl.value.trim();
 
-  if (raw === '') {
-    setLoadFieldState(i, inputEl, 'Lmin', '');
+  // Helper: returns numeric value of a field if present and passes basic checks, else null
+  const basicVal = (field) => {
+    const el  = document.getElementById(`input-${field}${i}`);
+    const r   = el ? el.value.trim() : '';
+    if (r === '') return null;
+    const v = Number(r);
+    if (isNaN(v)) return null;
+    if (field === 'L'    && (v <= 0 || v > 750)) return null;
+    if (field === 'Lmax' && v > 750)             return null;
+    if (!isValidLoadPrecision(r, v))             return null;
+    return v;
+  };
+
+  const done = (ok) => {
     updateLoadOutput();
-    return true;
-  }
+    if (!recheck) validateLmax(i, true);   // re-check Lmax whenever Lmin changes
+    return ok;
+  };
+
+  if (raw === '') { setLoadFieldState(i, inputEl, 'Lmin', '');  return done(true); }
 
   const val = Number(raw);
   if (isNaN(val)) {
     setLoadFieldState(i, inputEl, 'Lmin', 'Min must be a number', true);
-    updateLoadOutput();
-    return false;
+    return done(false);
   }
   if (val < 0.1) {
     setLoadFieldState(i, inputEl, 'Lmin', 'Min must be ≥ 0.1 W', true);
-    updateLoadOutput();
-    return false;
+    return done(false);
   }
   if (!isValidLoadPrecision(raw, val)) {
     setLoadFieldState(i, inputEl, 'Lmin',
       val > 20 ? 'Min > 20 W must be a whole number'
                : 'Min ≤ 20 W: max 1 decimal place', true);
-    updateLoadOutput();
-    return false;
+    return done(false);
   }
 
-  // Cross-field: Lmin ≤ L (only when L is present and valid)
-  const lEl  = document.getElementById(`input-L${i}`);
-  const lRaw = lEl ? lEl.value.trim() : '';
-  if (lRaw !== '') {
-    const lVal = Number(lRaw);
-    if (!isNaN(lVal) && lVal > 0 && lVal <= 750 && isValidLoadPrecision(lRaw, lVal)) {
-      if (val > lVal) {
-        setLoadFieldState(i, inputEl, 'Lmin',
-          `Min must be ≤ ${lVal} W (≤ Nominal)`, true);
-        updateLoadOutput();
-        return false;
-      }
+  // Cross-field: rule is  Lmax ≥ L ≥ Lmin
+  const lVal    = basicVal('L');
+  const lmaxVal = basicVal('Lmax');
+
+  if (lVal !== null) {
+    // L is present and valid — check Lmin ≤ L
+    if (val > lVal) {
+      setLoadFieldState(i, inputEl, 'Lmin', `Min must be ≤ ${lVal} W (≤ Nominal)`, true);
+      return done(false);
+    }
+  } else if (lmaxVal !== null) {
+    // L absent/invalid but Lmax is valid — check Lmin ≤ Lmax directly
+    if (val > lmaxVal) {
+      setLoadFieldState(i, inputEl, 'Lmin', `Min must be ≤ ${lmaxVal} W (≤ Max)`, true);
+      return done(false);
     }
   }
 
   setLoadFieldState(i, inputEl, 'Lmin', '');
-  updateLoadOutput();
-  return true;
+  return done(true);
 }
 
 // ── Validate Lmax(i) — maximum load ──
-function validateLmax(i) {
+// recheck=true: called from validateLmin; skip the return cross-call to avoid recursion
+function validateLmax(i, recheck = false) {
   const inputEl = document.getElementById(`input-Lmax${i}`);
   if (!inputEl) return true;
   const raw = inputEl.value.trim();
 
-  if (raw === '') {
-    setLoadFieldState(i, inputEl, 'Lmax', '');
+  // Helper: returns numeric value of a field if present and passes basic checks, else null
+  const basicVal = (field) => {
+    const el  = document.getElementById(`input-${field}${i}`);
+    const r   = el ? el.value.trim() : '';
+    if (r === '') return null;
+    const v = Number(r);
+    if (isNaN(v)) return null;
+    if (field === 'L'    && (v <= 0 || v > 750)) return null;
+    if (field === 'Lmin' && v < 0.1)             return null;
+    if (!isValidLoadPrecision(r, v))             return null;
+    return v;
+  };
+
+  const done = (ok) => {
     updateLoadOutput();
-    return true;
-  }
+    if (!recheck) validateLmin(i, true);   // re-check Lmin whenever Lmax changes
+    return ok;
+  };
+
+  if (raw === '') { setLoadFieldState(i, inputEl, 'Lmax', '');  return done(true); }
 
   const val = Number(raw);
   if (isNaN(val)) {
     setLoadFieldState(i, inputEl, 'Lmax', 'Max must be a number', true);
-    updateLoadOutput();
-    return false;
+    return done(false);
   }
   if (val > 750) {
     setLoadFieldState(i, inputEl, 'Lmax', 'Max must be ≤ 750 W', true);
-    updateLoadOutput();
-    return false;
+    return done(false);
   }
   if (!isValidLoadPrecision(raw, val)) {
     setLoadFieldState(i, inputEl, 'Lmax',
       val > 20 ? 'Max > 20 W must be a whole number'
                : 'Max ≤ 20 W: max 1 decimal place', true);
-    updateLoadOutput();
-    return false;
+    return done(false);
   }
 
-  // Cross-field: Lmax ≥ L (only when L is present and valid)
-  const lEl  = document.getElementById(`input-L${i}`);
-  const lRaw = lEl ? lEl.value.trim() : '';
-  if (lRaw !== '') {
-    const lVal = Number(lRaw);
-    if (!isNaN(lVal) && lVal > 0 && lVal <= 750 && isValidLoadPrecision(lRaw, lVal)) {
-      if (val < lVal) {
-        setLoadFieldState(i, inputEl, 'Lmax',
-          `Max must be ≥ ${lVal} W (≥ Nominal)`, true);
-        updateLoadOutput();
-        return false;
-      }
+  // Cross-field: rule is  Lmax ≥ L ≥ Lmin
+  const lVal    = basicVal('L');
+  const lminVal = basicVal('Lmin');
+
+  if (lVal !== null) {
+    // L is present and valid — check Lmax ≥ L
+    if (val < lVal) {
+      setLoadFieldState(i, inputEl, 'Lmax', `Max must be ≥ ${lVal} W (≥ Nominal)`, true);
+      return done(false);
+    }
+  } else if (lminVal !== null) {
+    // L absent/invalid but Lmin is valid — check Lmax ≥ Lmin directly
+    if (val < lminVal) {
+      setLoadFieldState(i, inputEl, 'Lmax', `Max must be ≥ ${lminVal} W (≥ Min)`, true);
+      return done(false);
     }
   }
 
   setLoadFieldState(i, inputEl, 'Lmax', '');
-  updateLoadOutput();
-  return true;
+  return done(true);
 }
 
 // ── Attach event listeners for card i ──
