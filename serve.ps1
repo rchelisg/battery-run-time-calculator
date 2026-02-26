@@ -1,6 +1,6 @@
 # Simple static file server for local testing
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
-$port = 8181
+$port = 8080
 $listener = [System.Net.HttpListener]::new()
 $listener.Prefixes.Add("http://localhost:$port/")
 $listener.Start()
