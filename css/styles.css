@@ -247,13 +247,18 @@ body {
   margin-top: 0;             /* no top gap — h2 is now beside, not above */
 }
 
-/* Each column: label → input → unit → error, stacked vertically */
+/* Each column: label → input → unit, stacked vertically — fixed width */
 .pack-field {
-  flex: 1;
-  min-width: 0;              /* allow flex children to shrink */
+  flex: 0 0 auto;            /* fixed width — don't grow to fill row */
+  min-width: 0;
   display: flex;
   flex-direction: column;
   align-items: stretch;
+}
+
+/* Extra right margin on Nominal to visually separate it from the Min/Max group */
+.pack-field-nominal {
+  margin-right: 0.6rem;
 }
 
 /* Small column heading above each input */
@@ -270,11 +275,12 @@ body {
 
 /* Compact input — overrides base .field-input sizing */
 .pack-input {
+  flex: none;                       /* override flex:1 from .field-input */
   text-align: center;
   padding: 0.08rem 0.2rem;          /* further reduced for compactness */
   min-height: 26px;                 /* tighter than default 44px */
   font-size: var(--font-size-base); /* explicit 16px — prevent iOS auto-scaling */
-  width: 0;                         /* iOS Safari: allows flex to shrink type=number */
+  width: 2.8rem;                    /* fixed: enough for 4 digits */
 }
 
 /* Narrow column for the single-digit N (Cells) field */
@@ -283,7 +289,7 @@ body {
 }
 
 .pack-field-narrow .pack-input {
-  width: 2.6rem;             /* just wide enough for one digit */
+  width: 2.2rem;             /* narrower: just wide enough for one digit */
 }
 
 /* Inline row: input + unit side by side */
@@ -332,11 +338,11 @@ body {
 
 /* ── LOAD card — same compact layout as PACK ── */
 
-/* Card layout: [LOADx label vertical] | [controls + fields + error] */
+/* Card layout: [LOADx label vertical] | [fields + error] | [vertical +/- strip] */
 .load-card {
   display: flex;
   flex-direction: row;
-  align-items: flex-start;
+  align-items: stretch;      /* stretch so +/- strip fills full card height */
   gap: var(--spacing-sm);
   padding: 0.15rem var(--spacing-sm);
 }
@@ -364,13 +370,16 @@ body {
   flex-direction: column;
 }
 
-/* +/- button row — only shown on last card (display:none on others) */
+/* Vertical +/- strip — right edge of card, always present for consistent width */
+/* − at top, + at bottom; buttons hidden via visibility on non-last cards     */
 .load-controls {
   display: flex;
-  justify-content: flex-end;
-  gap: 0.2rem;
-  height: 1.2rem;        /* compact; non-last cards collapse via display:none */
-  margin-bottom: 0.05rem;
+  flex-direction: column;
+  justify-content: space-between; /* − pinned to top, + pinned to bottom */
+  align-items: center;
+  flex-shrink: 0;
+  width: 1.5rem;          /* matches button width */
+  padding: 0.15rem 0;     /* small breathing room at top and bottom */
 }
 
 /* Individual +/- button */
@@ -410,13 +419,18 @@ body {
   align-items: flex-start;
 }
 
-/* Each field column */
+/* Each field column — fixed width, don't grow */
 .load-field {
-  flex: 1;
+  flex: 0 0 auto;
   min-width: 0;
   display: flex;
   flex-direction: column;
   align-items: stretch;
+}
+
+/* Extra right margin on Nominal to visually separate it from the Min/Max group */
+.load-field-nominal {
+  margin-right: 0.6rem;
 }
 
 /* Column heading */
@@ -433,11 +447,12 @@ body {
 
 /* Compact number input — same sizing as pack-input */
 .load-input {
+  flex: none;                       /* override flex:1 from .field-input */
   text-align: center;
   padding: 0.08rem 0.2rem;
   min-height: 26px;
   font-size: var(--font-size-base); /* explicit 16px — prevent iOS auto-scaling */
-  width: 0;                         /* iOS Safari: allows flex to shrink type=number */
+  width: 2.8rem;                    /* fixed: enough for 4 digits */
 }
 
 /* Inline row: input + unit side by side */
@@ -525,6 +540,17 @@ body {
 
 .load-out-nom.no-value,
 .load-out-rng.no-value  { color: #BDBDBD; }
+
+/* ── Total row — separator line + bold label ── */
+.load-out-total td {
+  border-top: 1px solid var(--color-border);
+  padding-top: 0.2rem;
+}
+
+.load-out-total-label {
+  font-weight: 700;
+  color: var(--color-text) !important;  /* darker than regular LOAD rows */
+}
 
 /* ── Responsive scale-up for larger screens ─── */
 /* Tablets and desktops (768 px and up) */

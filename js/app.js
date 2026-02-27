@@ -263,46 +263,82 @@ function updateLoadOutput() {
     setOutCell(i, 'Lmin', lminEl ? lminEl.value.trim() : '');
     setOutCell(i, 'Lmax', lmaxEl ? lmaxEl.value.trim() : '');
   }
+  updateTotalRow();
 }
 
-// ── Update +/- button visibility on the last card ──
+// ── Update the Total row — sum each column across all active LOAD cards ──
+// Only sums valid numeric entries; skips empty and invalid fields.
+// Rounds to 1 decimal place to avoid floating-point artefacts.
+function updateTotalRow() {
+  ['L', 'Lmin', 'Lmax'].forEach(field => {
+    let sum    = 0;
+    let hasAny = false;
+
+    for (let i = 0; i < loadCount; i++) {
+      const el  = document.getElementById(`input-${field}${i}`);
+      if (!el) continue;
+      const raw = el.value.trim();
+      if (raw === '') continue;
+      const val = parseFloat(raw);
+      if (isNaN(val)) continue;
+      sum    += val;
+      hasAny  = true;
+    }
+
+    const totalEl = document.getElementById(`lo-total-${field}`);
+    if (!totalEl) return;
+
+    const isNom = (field === 'L');
+    const cls   = isNom ? 'load-out-nom' : 'load-out-rng';
+
+    if (hasAny) {
+      // Round to 1 decimal place, then strip trailing .0 if whole number
+      const rounded   = Math.round(sum * 10) / 10;
+      const formatted = Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
+      totalEl.textContent = formatted;
+      totalEl.className   = `${cls} has-value`;
+    } else {
+      totalEl.textContent = '—';
+      totalEl.className   = `${cls} no-value`;
+    }
+  });
+}
+
+// ── Update +/- button visibility ──
+// The controls strip is always present (consistent card width).
+// Only the last card's buttons are visible; non-last cards have both hidden.
 function updateLoadControls() {
   for (let i = 0; i < loadCount; i++) {
-    const ctrlDiv = document.getElementById(`load-controls-${i}`);
     const minBtn  = document.getElementById(`load-minus-${i}`);
     const plusBtn = document.getElementById(`load-plus-${i}`);
-    if (!ctrlDiv) continue;
+    if (!minBtn || !plusBtn) continue;
 
     const isLast = (i === loadCount - 1);
 
-    // All cards reserve the controls height; only last card's buttons are visible
-    ctrlDiv.style.display    = 'flex';
-    ctrlDiv.style.visibility = isLast ? 'visible' : 'hidden';
-
-    if (isLast) {
-      if (loadCount === 1) {
-        // Single card: + only
-        minBtn.style.visibility = 'hidden';
-        minBtn.disabled         = true;
-        plusBtn.style.visibility = 'visible';
-        plusBtn.disabled         = false;
-      } else if (loadCount < LOAD_MAX) {
-        // Middle range: both + and -
-        minBtn.style.visibility  = 'visible';
-        minBtn.disabled          = false;
-        plusBtn.style.visibility = 'visible';
-        plusBtn.disabled         = false;
-      } else {
-        // Max cards reached: - only
-        minBtn.style.visibility  = 'visible';
-        minBtn.disabled          = false;
-        plusBtn.style.visibility = 'hidden';
-        plusBtn.disabled         = true;
-      }
+    if (!isLast) {
+      // Non-last cards: hide both buttons; strip stays for consistent card width
+      minBtn.style.visibility  = 'hidden';
+      minBtn.disabled          = true;
+      plusBtn.style.visibility = 'hidden';
+      plusBtn.disabled         = true;
+    } else if (loadCount === 1) {
+      // Single card: + only (at bottom), − invisible (at top)
+      minBtn.style.visibility  = 'hidden';
+      minBtn.disabled          = true;
+      plusBtn.style.visibility = 'visible';
+      plusBtn.disabled         = false;
+    } else if (loadCount < LOAD_MAX) {
+      // Middle range: both − (top) and + (bottom)
+      minBtn.style.visibility  = 'visible';
+      minBtn.disabled          = false;
+      plusBtn.style.visibility = 'visible';
+      plusBtn.disabled         = false;
     } else {
-      // Non-last card: disable both (they are also invisible)
-      if (minBtn)  minBtn.disabled  = true;
-      if (plusBtn) plusBtn.disabled = true;
+      // Max cards reached: − only (at top), + invisible (at bottom)
+      minBtn.style.visibility  = 'visible';
+      minBtn.disabled          = false;
+      plusBtn.style.visibility = 'hidden';
+      plusBtn.disabled         = true;
     }
   }
 }
@@ -521,12 +557,9 @@ function addLoadCard() {
   card.innerHTML = `
     <h2>LOAD ${i}</h2>
     <div class="load-content">
-      <div class="load-controls" id="load-controls-${i}">
-        <button class="load-btn load-btn-minus" id="load-minus-${i}" aria-label="Remove load card">−</button>
-        <button class="load-btn load-btn-plus"  id="load-plus-${i}"  aria-label="Add load card">+</button>
-      </div>
       <div class="load-row">
-        <div class="load-field">
+        <!-- Nominal — extra right margin separates it from Min/Max group -->
+        <div class="load-field load-field-nominal">
           <label class="load-label" for="input-L${i}">Nominal</label>
           <div class="load-input-row">
             <input class="field-input load-input" type="number"
@@ -552,6 +585,11 @@ function addLoadCard() {
         </div>
       </div>
       <p class="load-error" id="load-error-${i}"></p>
+    </div>
+    <!-- Vertical +/- strip on right edge: − at top, + at bottom -->
+    <div class="load-controls" id="load-controls-${i}">
+      <button class="load-btn load-btn-minus" id="load-minus-${i}" aria-label="Remove load card">−</button>
+      <button class="load-btn load-btn-plus"  id="load-plus-${i}"  aria-label="Add load card">+</button>
     </div>
   `;
 

@@ -49,8 +49,8 @@
                      inputmode="numeric" maxlength="1" value="7">
             </div>
 
-            <!-- C: nominal cell capacity -->
-            <div class="pack-field">
+            <!-- C: nominal cell capacity — extra right margin separates it from Min/Max group -->
+            <div class="pack-field pack-field-nominal">
               <label class="pack-label" for="input-C">Nominal</label>
               <div class="pack-input-row">
                 <input class="field-input pack-input" type="number" id="input-C"
@@ -137,6 +137,13 @@
               <td class="load-out-nom no-value" id="lo4-L">—</td>
               <td class="load-out-rng no-value" id="lo4-Lmin">—</td>
               <td class="load-out-rng no-value" id="lo4-Lmax">—</td>
+            </tr>
+            <!-- Total row — sum of all active LOAD entries per column -->
+            <tr id="load-out-total" class="load-out-total">
+              <td class="load-out-label load-out-total-label">Total:</td>
+              <td class="load-out-nom no-value" id="lo-total-L">—</td>
+              <td class="load-out-rng no-value" id="lo-total-Lmin">—</td>
+              <td class="load-out-rng no-value" id="lo-total-Lmax">—</td>
             </tr>
           </tbody>
         </table>

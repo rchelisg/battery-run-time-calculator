@@ -2,7 +2,7 @@
 // Service Worker — Battery Run Time Calculator
 // Cache version: increment this with every deployment
 // ─────────────────────────────────────────────
-const CACHE_NAME = 'batt-calc-v3';
+const CACHE_NAME = 'batt-calc-v4';
 
 // All assets to pre-cache on first install
 // Use relative paths (./…) so this works on GitHub Pages subdirectories
