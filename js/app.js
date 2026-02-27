@@ -217,8 +217,9 @@ let loadCount = 0;
 // Per-card error registry: loadErrors[i] = { L: '', Lmin: '', Lmax: '' }
 const loadErrors = [];
 
-// Per-card flag: true = user has manually typed in L(i); false = auto-populate eligible
-const loadLUserSet = [];
+// Per-card ownership flags: tracks which fields the user has manually entered.
+// {L: bool, Lmin: bool, Lmax: bool} — false = field is eligible for auto-populate.
+const loadFieldUserSet = [];
 
 const loadContainer = document.getElementById('load-cards-container');
 
@@ -316,58 +317,78 @@ function updateTotalRow() {
   });
 }
 
-// ── Auto-populate L(i) from Lmin/Lmax when L is not user-set ──
-// Called after Lmin or Lmax changes, or when L is cleared.
-// Rules (per spec):
-//   • Only Lmin entered  → L = Lmin
-//   • Only Lmax entered  → L = Lmax
-//   • Both entered       → L = (Lmin + Lmax) / 2
-//   • Neither entered    → clear L if it was previously auto-populated
-// The computed value is always valid, so no validation errors are raised.
-// No-ops immediately if the user has manually entered L (loadLUserSet[i] = true).
-function tryAutoPopulateL(i) {
-  if (loadLUserSet[i]) return;   // user owns this field — never override
-
+// ── Auto-populate non-user-set fields from user-set ones ──
+// Called after any field blurs.  Only fields whose ownership flag is false
+// (loadFieldUserSet[i].L / .Lmin / .Lmax) are eligible for auto-population.
+// Source values are only taken from user-set, error-free fields.
+//
+// Derivation rules:
+//   L    ← avg(Lmin, Lmax) | Lmin | Lmax   (whichever are available)
+//   Lmin ← L               | Lmax
+//   Lmax ← L               | Lmin
+//
+// All results satisfy Lmin ≤ L ≤ Lmax when the source inputs are valid.
+function tryAutoPopulateAll(i) {
+  const us    = loadFieldUserSet[i];
   const lEl    = document.getElementById(`input-L${i}`);
   const lminEl = document.getElementById(`input-Lmin${i}`);
   const lmaxEl = document.getElementById(`input-Lmax${i}`);
-  if (!lEl) return;
+  if (!lEl || !lminEl || !lmaxEl) return;
 
-  const lminRaw = lminEl ? lminEl.value.trim() : '';
-  const lmaxRaw = lmaxEl ? lmaxEl.value.trim() : '';
+  // Capture user-set, error-free values as source data (auto values are ignored)
+  const lVal    = (us.L    && lEl.value.trim()    !== '' && loadErrors[i].L    === '')
+                  ? parseFloat(lEl.value.trim())    : null;
+  const lminVal = (us.Lmin && lminEl.value.trim() !== '' && loadErrors[i].Lmin === '')
+                  ? parseFloat(lminEl.value.trim()) : null;
+  const lmaxVal = (us.Lmax && lmaxEl.value.trim() !== '' && loadErrors[i].Lmax === '')
+                  ? parseFloat(lmaxEl.value.trim()) : null;
 
-  // Only use values that are currently error-free
-  const lminVal = (lminRaw !== '' && loadErrors[i] && loadErrors[i].Lmin === '')
-    ? parseFloat(lminRaw) : null;
-  const lmaxVal = (lmaxRaw !== '' && loadErrors[i] && loadErrors[i].Lmax === '')
-    ? parseFloat(lmaxRaw) : null;
+  // Apply same precision rules used for manual entry
+  function fmtLoad(v) {
+    if (v > 20) return String(Math.round(v));
+    const r = Math.round(v * 10) / 10;
+    return Number.isInteger(r) ? String(r) : r.toFixed(1);
+  }
 
-  let autoVal = null;
-  if      (lminVal !== null && lmaxVal !== null) autoVal = (lminVal + lmaxVal) / 2;
-  else if (lminVal !== null)                     autoVal = lminVal;
-  else if (lmaxVal !== null)                     autoVal = lmaxVal;
+  // Write an auto value into a field and mark it as auto-populated
+  function autoSet(el, fieldKey, val) {
+    const fmt = fmtLoad(val);
+    el.value = fmt;
+    el.dataset.lastValid = fmt;          // keep revert baseline in sync
+    el.classList.add('auto-populated');
+    setLoadFieldState(i, el, fieldKey, '');
+  }
 
-  if (autoVal !== null) {
-    // Apply same precision rules used for manual entry
-    let formatted;
-    if (autoVal > 20) {
-      formatted = String(Math.round(autoVal));          // whole number
-    } else {
-      const r = Math.round(autoVal * 10) / 10;
-      formatted = Number.isInteger(r) ? String(r) : r.toFixed(1);  // ≤ 1 decimal
+  // Clear a field that was previously auto-populated
+  function autoClear(el, fieldKey) {
+    if (el.classList.contains('auto-populated')) {
+      el.value = '';
+      el.dataset.lastValid = '';
+      el.classList.remove('auto-populated');
+      setLoadFieldState(i, el, fieldKey, '');
     }
-    lEl.value = formatted;
-    lEl.dataset.lastValid = formatted;    // keep revert baseline in sync
-    lEl.classList.add('auto-populated');
-    setLoadFieldState(i, lEl, 'L', '');   // auto value is always in-range
-  } else {
-    // No valid Lmin/Lmax — clear L only if it was previously auto-populated
-    if (lEl.classList.contains('auto-populated')) {
-      lEl.value = '';
-      lEl.dataset.lastValid = '';         // keep revert baseline in sync
-      lEl.classList.remove('auto-populated');
-      setLoadFieldState(i, lEl, 'L', '');
-    }
+  }
+
+  // ── Auto-populate L ──
+  if (!us.L) {
+    if      (lminVal !== null && lmaxVal !== null) autoSet(lEl, 'L', (lminVal + lmaxVal) / 2);
+    else if (lminVal !== null)                     autoSet(lEl, 'L', lminVal);
+    else if (lmaxVal !== null)                     autoSet(lEl, 'L', lmaxVal);
+    else                                           autoClear(lEl, 'L');
+  }
+
+  // ── Auto-populate Lmin ──
+  if (!us.Lmin) {
+    if      (lVal    !== null) autoSet(lminEl, 'Lmin', lVal);
+    else if (lmaxVal !== null) autoSet(lminEl, 'Lmin', lmaxVal);
+    else                       autoClear(lminEl, 'Lmin');
+  }
+
+  // ── Auto-populate Lmax ──
+  if (!us.Lmax) {
+    if      (lVal    !== null) autoSet(lmaxEl, 'Lmax', lVal);
+    else if (lminVal !== null) autoSet(lmaxEl, 'Lmax', lminVal);
+    else                       autoClear(lmaxEl, 'Lmax');
   }
 
   updateLoadOutput();
@@ -422,7 +443,6 @@ function validateL(i) {
     setLoadFieldState(i, inputEl, 'L', '');
     validateLmin(i, true);
     validateLmax(i, true);
-    tryAutoPopulateL(i);   // re-apply auto-populate since L is now empty
     updateLoadOutput();
     return true;
   }
@@ -485,7 +505,6 @@ function validateLmin(i, recheck = false) {
     updateLoadOutput();
     if (!recheck) {
       validateLmax(i, true);   // re-check Lmax whenever Lmin changes
-      tryAutoPopulateL(i);     // re-compute L if not user-set
     }
     return ok;
   };
@@ -554,7 +573,6 @@ function validateLmax(i, recheck = false) {
     updateLoadOutput();
     if (!recheck) {
       validateLmin(i, true);   // re-check Lmin whenever Lmax changes
-      tryAutoPopulateL(i);     // re-compute L if not user-set
     }
     return ok;
   };
@@ -607,55 +625,79 @@ function attachLoadListeners(i) {
   const minBtn  = document.getElementById(`load-minus-${i}`);
   const plusBtn = document.getElementById(`load-plus-${i}`);
 
+  const us = loadFieldUserSet[i];      // ownership flags for this card
+
   // Seed last-known-good values (all start empty for a new card)
   lEl.dataset.lastValid    = lEl.value;
   lminEl.dataset.lastValid = lminEl.value;
   lmaxEl.dataset.lastValid = lmaxEl.value;
 
-  // L: track ownership on every keystroke; update report card live;
-  //    defer validation and error display to blur only.
+  // ── L (Nominal) ──
+  // On input: claim ownership when typing, release when cleared; live-update report.
+  // On blur:  validate; revert to lastValid if invalid; then auto-populate all peers.
   lEl.addEventListener('input', () => {
     const raw = lEl.value.trim();
     if (raw !== '') {
-      loadLUserSet[i] = true;          // user is typing — take ownership
+      us.L = true;                     // user is typing — take ownership
       lEl.classList.remove('auto-populated');
     } else {
-      loadLUserSet[i] = false;         // field cleared — revert to auto-populate mode
+      us.L = false;                    // field cleared — revert to auto-populate mode
     }
-    updateLoadOutput();                // live update to report card (no error check)
+    updateLoadOutput();
   });
   lEl.addEventListener('blur', () => {
     if (validateL(i)) {
-      lEl.dataset.lastValid = lEl.value;   // commit good value
+      lEl.dataset.lastValid = lEl.value;
     } else {
-      // Invalid — restore previous good value (only if user-set; auto values are always valid)
-      if (loadLUserSet[i]) {
-        lEl.value = lEl.dataset.lastValid ?? '';
-        if (lEl.value === '') loadLUserSet[i] = false;  // cleared → back to auto-populate mode
-        validateL(i);                  // re-validate to clear error styling
-      }
+      lEl.value = lEl.dataset.lastValid ?? '';
+      if (lEl.value === '') us.L = false;
+      validateL(i);                    // re-validate to clear error styling
     }
+    tryAutoPopulateAll(i);
   });
 
-  // Lmin / Lmax: update report card live; revert-on-invalid on blur.
-  lminEl.addEventListener('input', updateLoadOutput);
+  // ── Lmin ──
+  lminEl.addEventListener('input', () => {
+    const raw = lminEl.value.trim();
+    if (raw !== '') {
+      us.Lmin = true;
+      lminEl.classList.remove('auto-populated');
+    } else {
+      us.Lmin = false;
+    }
+    updateLoadOutput();
+  });
   lminEl.addEventListener('blur', () => {
     if (validateLmin(i)) {
       lminEl.dataset.lastValid = lminEl.value;
     } else {
       lminEl.value = lminEl.dataset.lastValid ?? '';
-      validateLmin(i);                 // re-validate to clear error styling
+      if (lminEl.value === '') us.Lmin = false;
+      validateLmin(i);
     }
+    tryAutoPopulateAll(i);
   });
 
-  lmaxEl.addEventListener('input', updateLoadOutput);
+  // ── Lmax ──
+  lmaxEl.addEventListener('input', () => {
+    const raw = lmaxEl.value.trim();
+    if (raw !== '') {
+      us.Lmax = true;
+      lmaxEl.classList.remove('auto-populated');
+    } else {
+      us.Lmax = false;
+    }
+    updateLoadOutput();
+  });
   lmaxEl.addEventListener('blur', () => {
     if (validateLmax(i)) {
       lmaxEl.dataset.lastValid = lmaxEl.value;
     } else {
       lmaxEl.value = lmaxEl.dataset.lastValid ?? '';
-      validateLmax(i);                 // re-validate to clear error styling
+      if (lmaxEl.value === '') us.Lmax = false;
+      validateLmax(i);
     }
+    tryAutoPopulateAll(i);
   });
 
   if (minBtn)  minBtn.addEventListener('click',  removeLastLoadCard);
@@ -667,8 +709,8 @@ function addLoadCard() {
   if (loadCount >= LOAD_MAX) return;
 
   const i = loadCount;
-  loadErrors[i]  = { L: '', Lmin: '', Lmax: '' };
-  loadLUserSet[i] = false;   // starts in auto-populate mode (L is empty)
+  loadErrors[i]       = { L: '', Lmin: '', Lmax: '' };
+  loadFieldUserSet[i] = { L: false, Lmin: false, Lmax: false };  // all fields start in auto-populate mode
 
   const card = document.createElement('div');
   card.className = 'card load-card';
@@ -731,11 +773,23 @@ function removeLastLoadCard() {
   const card = document.getElementById(`load-card-${loadCount}`);
   if (card) loadContainer.removeChild(card);
   loadErrors.splice(loadCount, 1);
-  loadLUserSet.splice(loadCount, 1);
+  loadFieldUserSet.splice(loadCount, 1);
 
   updateLoadControls();
   updateLoadOutput();
 }
+
+// ── Footer timestamp ─────────────────────────
+// Prepend "YYYY-MM-DD HH:MM " to the footer copy at page-load time
+(function () {
+  const tsEl = document.getElementById('footer-timestamp');
+  if (!tsEl) return;
+  const now = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  tsEl.textContent =
+    `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ` +
+    `${pad(now.getHours())}:${pad(now.getMinutes())} `;
+})();
 
 // ── Initialise: create the first load card on page load ──
 addLoadCard();

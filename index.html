@@ -53,7 +53,7 @@
             <div class="pack-field pack-field-nominal">
               <label class="pack-label" for="input-C">Nominal</label>
               <div class="pack-input-row">
-                <input class="field-input pack-input" type="number" id="input-C"
+                <input class="field-input pack-input pack-input-c" type="number" id="input-C"
                        inputmode="numeric" min="100" max="8000" step="1" value="2000">
                 <span class="pack-unit">mAh</span>
               </div>
@@ -65,7 +65,7 @@
               <div class="pack-field">
                 <label class="pack-label" for="input-Cmin">Min</label>
                 <div class="pack-input-row">
-                  <input class="field-input pack-input" type="number" id="input-Cmin"
+                  <input class="field-input pack-input pack-input-c" type="number" id="input-Cmin"
                          inputmode="numeric" step="1">
                   <span class="pack-unit">mAh</span>
                 </div>
@@ -74,7 +74,7 @@
               <div class="pack-field">
                 <label class="pack-label" for="input-Cmax">Max</label>
                 <div class="pack-input-row">
-                  <input class="field-input pack-input" type="number" id="input-Cmax"
+                  <input class="field-input pack-input pack-input-c" type="number" id="input-Cmax"
                          inputmode="numeric" step="1">
                   <!-- No unit label: Max right edge is flush; unit implied by Nominal/Min -->
                 </div>
@@ -88,6 +88,10 @@
           <p class="pack-error" id="pack-error"></p>
 
         </div><!-- /pack-content -->
+
+        <!-- Invisible spacer — matches LOAD +/- strip width; aligns Cmax/Lmax right edges -->
+        <div class="pack-ctrl-spacer" aria-hidden="true"></div>
+
       </div><!-- /pack-card -->
 
       <!-- ── LOAD cards container ─────────────── -->
@@ -112,38 +116,38 @@
           </thead>
           <tbody>
             <tr id="load-out-0">
-              <td class="load-out-label">LOAD 0:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td>
+              <td class="load-out-label">LOAD 0</td>
               <td class="load-out-nom no-value" id="lo0-L">—</td>
               <td class="load-out-rng no-value" id="lo0-Lmin">—</td>
               <td class="load-out-rng no-value" id="lo0-Lmax">—</td>
             </tr>
             <tr id="load-out-1">
-              <td class="load-out-label">LOAD 1:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td>
+              <td class="load-out-label">LOAD 1</td>
               <td class="load-out-nom no-value" id="lo1-L">—</td>
               <td class="load-out-rng no-value" id="lo1-Lmin">—</td>
               <td class="load-out-rng no-value" id="lo1-Lmax">—</td>
             </tr>
             <tr id="load-out-2">
-              <td class="load-out-label">LOAD 2:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td>
+              <td class="load-out-label">LOAD 2</td>
               <td class="load-out-nom no-value" id="lo2-L">—</td>
               <td class="load-out-rng no-value" id="lo2-Lmin">—</td>
               <td class="load-out-rng no-value" id="lo2-Lmax">—</td>
             </tr>
             <tr id="load-out-3">
-              <td class="load-out-label">LOAD 3:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td>
+              <td class="load-out-label">LOAD 3</td>
               <td class="load-out-nom no-value" id="lo3-L">—</td>
               <td class="load-out-rng no-value" id="lo3-Lmin">—</td>
               <td class="load-out-rng no-value" id="lo3-Lmax">—</td>
             </tr>
             <tr id="load-out-4">
-              <td class="load-out-label">LOAD 4:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td>
+              <td class="load-out-label">LOAD 4</td>
               <td class="load-out-nom no-value" id="lo4-L">—</td>
               <td class="load-out-rng no-value" id="lo4-Lmin">—</td>
               <td class="load-out-rng no-value" id="lo4-Lmax">—</td>
             </tr>
             <!-- Total row — sum of all active LOAD entries per column -->
             <tr id="load-out-total" class="load-out-total">
-              <td class="load-out-label load-out-total-label">Total:</td>
+              <td class="load-out-label load-out-total-label">Total</td>
               <td class="load-out-nom no-value" id="lo-total-L">—</td>
               <td class="load-out-rng no-value" id="lo-total-Lmin">—</td>
               <td class="load-out-rng no-value" id="lo-total-Lmax">—</td>
@@ -156,7 +160,7 @@
     </main>
 
     <footer class="app-footer">
-      <p>BRTC &copy; 2026 V1.0</p>
+      <p><span id="footer-timestamp"></span>BRTC &copy; 2026 V1.0</p>
     </footer>
 
   </div>
