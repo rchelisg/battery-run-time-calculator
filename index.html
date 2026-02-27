@@ -31,6 +31,14 @@
       <h1>🔋 Battery Run Time Calculator</h1>
     </header>
 
+    <!-- ── Navigation tabs ──────────────────── -->
+    <nav class="nav-bar" aria-label="App sections">
+      <button class="nav-btn active" id="nav-calc">Calc</button>
+      <button class="nav-btn"        id="nav-time">Time</button>
+      <button class="nav-btn"        id="nav-cost">Cost</button>
+      <button class="nav-btn"        id="nav-load">Load</button>
+    </nav>
+
     <main class="app-main">
 
       <!-- ── PACK card ──────────────────────────── -->
@@ -97,65 +105,90 @@
       <!-- ── LOAD cards container ─────────────── -->
       <div id="load-cards-container"></div>
 
-      <!-- ── LOAD output ──────────────────────── -->
-      <div class="card load-output">
-        <table class="load-out-table">
-          <colgroup>
-            <col class="col-label">
-            <col class="col-nom">
-            <col class="col-rng">
-            <col class="col-rng">
-          </colgroup>
-          <thead>
-            <tr>
-              <th class="load-out-th-label">(W)</th>
-              <th class="load-out-th-num">Nom</th>
-              <th class="load-out-th-num">Min</th>
-              <th class="load-out-th-num">Max</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr id="load-out-0">
-              <td class="load-out-label">LOAD 0</td>
-              <td class="load-out-nom no-value" id="lo0-L">—</td>
-              <td class="load-out-rng no-value" id="lo0-Lmin">—</td>
-              <td class="load-out-rng no-value" id="lo0-Lmax">—</td>
-            </tr>
-            <tr id="load-out-1">
-              <td class="load-out-label">LOAD 1</td>
-              <td class="load-out-nom no-value" id="lo1-L">—</td>
-              <td class="load-out-rng no-value" id="lo1-Lmin">—</td>
-              <td class="load-out-rng no-value" id="lo1-Lmax">—</td>
-            </tr>
-            <tr id="load-out-2">
-              <td class="load-out-label">LOAD 2</td>
-              <td class="load-out-nom no-value" id="lo2-L">—</td>
-              <td class="load-out-rng no-value" id="lo2-Lmin">—</td>
-              <td class="load-out-rng no-value" id="lo2-Lmax">—</td>
-            </tr>
-            <tr id="load-out-3">
-              <td class="load-out-label">LOAD 3</td>
-              <td class="load-out-nom no-value" id="lo3-L">—</td>
-              <td class="load-out-rng no-value" id="lo3-Lmin">—</td>
-              <td class="load-out-rng no-value" id="lo3-Lmax">—</td>
-            </tr>
-            <tr id="load-out-4">
-              <td class="load-out-label">LOAD 4</td>
-              <td class="load-out-nom no-value" id="lo4-L">—</td>
-              <td class="load-out-rng no-value" id="lo4-Lmin">—</td>
-              <td class="load-out-rng no-value" id="lo4-Lmax">—</td>
-            </tr>
-            <!-- Total row — sum of all active LOAD entries per column -->
-            <tr id="load-out-total" class="load-out-total">
-              <td class="load-out-label load-out-total-label">Total</td>
-              <td class="load-out-nom no-value" id="lo-total-L">—</td>
-              <td class="load-out-rng no-value" id="lo-total-Lmin">—</td>
-              <td class="load-out-rng no-value" id="lo-total-Lmax">—</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+      <!-- ── LOAD summary card (display only) ── -->
+      <!-- Shows sum of L, Lmin, Lmax across all active LOAD x cards -->
+      <div class="card load-card load-summary-card" id="load-summary-card">
+        <h2>LOAD</h2>
+        <div class="load-content">
+          <div class="load-row">
+            <!-- Nominal total -->
+            <div class="load-field load-field-nominal">
+              <label class="load-label">Nom</label>
+              <div class="load-input-row">
+                <span class="load-summary-val" id="ls-L">—</span>
+                <span class="load-unit">W</span>
+              </div>
+            </div>
+            <!-- Min + Max totals grouped right -->
+            <div class="load-minmax-group">
+              <div class="load-field">
+                <label class="load-label">Min</label>
+                <div class="load-input-row">
+                  <span class="load-summary-val" id="ls-Lmin">—</span>
+                  <span class="load-unit">W</span>
+                </div>
+              </div>
+              <div class="load-field">
+                <label class="load-label">Max</label>
+                <div class="load-input-row">
+                  <span class="load-summary-val" id="ls-Lmax">—</span>
+                  <!-- No unit: right edge aligns with Lmax input boxes -->
+                </div>
+              </div>
+            </div><!-- /load-minmax-group -->
+          </div><!-- /load-row -->
+        </div><!-- /load-content -->
+        <!-- Spacer matches LOAD cards' +/- strip width for consistent alignment -->
+        <div class="pack-ctrl-spacer" aria-hidden="true"></div>
+      </div><!-- /load-summary-card -->
 
+      <!-- ── TIME card ──────────────────────────── -->
+      <!-- T = nominal run time; Tmin = minimum run time; Tmax = calculated (read-only) -->
+      <div class="card load-card time-card" id="time-card">
+        <h2>TIME</h2>
+        <div class="load-content">
+          <div class="load-row">
+
+            <!-- T: nominal run time (user entry) -->
+            <div class="load-field load-field-nominal">
+              <label class="load-label" for="input-T">Nominal</label>
+              <div class="load-input-row">
+                <input class="field-input load-input" type="number"
+                       id="input-T" inputmode="decimal" step="0.1">
+                <span class="load-unit">h</span>
+              </div>
+            </div>
+
+            <!-- Tmin + Tmax grouped right -->
+            <div class="load-minmax-group">
+              <div class="load-field">
+                <label class="load-label" for="input-Tmin">Min</label>
+                <div class="load-input-row">
+                  <input class="field-input load-input" type="number"
+                         id="input-Tmin" inputmode="decimal" step="0.1">
+                  <span class="load-unit">h</span>
+                </div>
+              </div>
+              <div class="load-field">
+                <label class="load-label">Max</label>
+                <div class="load-input-row">
+                  <input class="field-input load-input time-calc-field"
+                         type="text" id="input-Tmax" readonly placeholder="—">
+                  <!-- No unit: right edge aligns; Tmax is calculated, not entered -->
+                </div>
+              </div>
+            </div><!-- /load-minmax-group -->
+
+          </div><!-- /load-row -->
+          <p class="load-error" id="time-error"></p>
+        </div><!-- /load-content -->
+
+        <!-- Controls strip: buttons hidden — TIME card is always exactly one -->
+        <div class="load-controls">
+          <button class="load-btn" style="visibility:hidden" disabled aria-hidden="true">−</button>
+          <button class="load-btn" style="visibility:hidden" disabled aria-hidden="true">+</button>
+        </div>
+      </div><!-- /time-card -->
 
     </main>
 

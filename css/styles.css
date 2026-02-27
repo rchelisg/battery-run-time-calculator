@@ -349,6 +349,44 @@ body {
   line-height: 1.4;
 }
 
+/* ── Nav bar ────────────────────────────────── */
+/* Row of 4 equally-wide tappable tab buttons */
+.nav-bar {
+  display: flex;
+  background-color: var(--color-card);
+  border-bottom: 2px solid var(--color-border);
+  /* Bleed edge-to-edge like the app-header */
+  margin-left:  calc(-1 * var(--spacing-md));
+  margin-right: calc(-1 * var(--spacing-md));
+}
+
+.nav-btn {
+  flex: 1;
+  min-height: 44px;           /* iOS minimum touch target */
+  border: none;
+  border-bottom: 3px solid transparent;
+  background: transparent;
+  font-family: inherit;
+  font-size: var(--font-size-base);
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  padding: 0.4rem 0;
+  touch-action: manipulation;
+  user-select: none;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.nav-btn.active {
+  color: #1976D2;
+  border-bottom-color: #1976D2;
+  font-weight: 600;
+}
+
+.nav-btn:active {
+  background-color: var(--color-bg);
+}
+
 /* ── Footer ─────────────────────────────────── */
 .app-footer {
   text-align: center;
@@ -603,6 +641,39 @@ body {
 .load-out-total-label {
   font-weight: 700;
   color: var(--color-text) !important;  /* darker than regular LOAD rows */
+}
+
+/* Auto-populated PACK capacity inputs (Cmin/Cmax seeded from C) */
+.pack-input.auto-populated {
+  background-color: #E8F4FD;   /* same light-blue as LOAD auto-populated */
+}
+
+/* LOAD summary card — display-only value spans styled to look like compact inputs */
+.load-summary-val {
+  display: inline-block;
+  width: 2.8rem;
+  min-height: 26px;
+  line-height: 22px;           /* centres single-line text inside the box */
+  text-align: center;
+  font-size: var(--font-size-base);
+  color: var(--color-text);
+  background-color: #F5F5F5;  /* light grey — indicates read-only */
+  border: 1.5px solid var(--color-border);
+  border-radius: 8px;
+  padding: 0.08rem 0.2rem;
+  box-sizing: border-box;
+}
+
+/* TIME card: Tmax is calculated (not user-enterable) */
+.time-calc-field {
+  background-color: #F5F5F5;  /* light grey — indicates read-only */
+  color: var(--color-text-secondary);
+  cursor: default;
+}
+
+.time-calc-field:focus {
+  border-color: var(--color-border);  /* suppress focus highlight */
+  outline: none;
 }
 
 /* ── Responsive scale-up for larger screens ─── */

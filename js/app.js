@@ -54,6 +54,43 @@ const packErrorEl = document.getElementById('pack-error');
 // Per-field error registry — priority order: N > C > Cmin > Cmax
 const packErrors = { N: '', C: '', Cmin: '', Cmax: '' };
 
+// Per-field ownership: Cmin/Cmax can be auto-populated from C; N and C are always user-set
+const packFieldUserSet = { Cmin: false, Cmax: false };
+
+// ── Auto-populate Cmin/Cmax from C ──────────────
+// Called after C blurs (valid or cleared), and after Cmin/Cmax clear.
+// If Cmin/Cmax are not user-set, seeds them with C's value (or clears them when C clears).
+function tryAutoPopulatePack() {
+  const cRaw   = inputC.value.trim();
+  const cValid = cRaw !== '' && packErrors.C === '';
+
+  function autoSet(el, fieldKey) {
+    el.value = cRaw;
+    el.dataset.lastValid = cRaw;
+    el.classList.add('auto-populated');
+    setFieldState(el, fieldKey, '');
+  }
+
+  function autoClear(el, fieldKey) {
+    if (el.classList.contains('auto-populated')) {
+      el.value = '';
+      el.dataset.lastValid = '';
+      el.classList.remove('auto-populated');
+      setFieldState(el, fieldKey, '');
+    }
+  }
+
+  if (!packFieldUserSet.Cmin) {
+    if (cValid) autoSet(inputCmin, 'Cmin');
+    else         autoClear(inputCmin, 'Cmin');
+  }
+
+  if (!packFieldUserSet.Cmax) {
+    if (cValid) autoSet(inputCmax, 'Cmax');
+    else         autoClear(inputCmax, 'Cmax');
+  }
+}
+
 // ── Refresh the shared error strip ──
 // Always shows the highest-priority active error (or clears if none)
 function showPackError() {
@@ -193,7 +230,7 @@ function blurValidate(inputEl, validateFn) {
   }
 }
 
-// ── Attach event listeners ──
+// ── Attach PACK event listeners ──
 
 // Seed each field's last-known-good value from its current (default) value.
 inputN.dataset.lastValid    = inputN.value;    // "7"
@@ -201,11 +238,187 @@ inputC.dataset.lastValid    = inputC.value;    // "2000"
 inputCmin.dataset.lastValid = inputCmin.value; // ""
 inputCmax.dataset.lastValid = inputCmax.value; // ""
 
-// Validate on blur only; revert to last valid if the new value is out-of-range.
-inputN.addEventListener('blur',    () => blurValidate(inputN,    validateN));
-inputC.addEventListener('blur',    () => blurValidate(inputC,    validateC));
-inputCmin.addEventListener('blur', () => blurValidate(inputCmin, validateCmin));
-inputCmax.addEventListener('blur', () => blurValidate(inputCmax, validateCmax));
+// N — simple blur validate (no auto-populate dependency)
+inputN.addEventListener('blur', () => blurValidate(inputN, validateN));
+
+// C — after revert-or-save, re-run auto-populate for Cmin/Cmax
+inputC.addEventListener('blur', () => {
+  blurValidate(inputC, validateC);
+  tryAutoPopulatePack();
+});
+
+// Cmin — track ownership; revert-on-invalid on blur; re-populate if cleared
+inputCmin.addEventListener('input', () => {
+  if (inputCmin.value.trim() !== '') {
+    packFieldUserSet.Cmin = true;
+    inputCmin.classList.remove('auto-populated');
+  } else {
+    packFieldUserSet.Cmin = false;
+  }
+});
+inputCmin.addEventListener('blur', () => {
+  if (validateCmin()) {
+    inputCmin.dataset.lastValid = inputCmin.value;
+    if (inputCmin.value.trim() === '') packFieldUserSet.Cmin = false;
+  } else {
+    inputCmin.value = inputCmin.dataset.lastValid ?? '';
+    if (inputCmin.value.trim() === '') packFieldUserSet.Cmin = false;
+    validateCmin();
+  }
+  tryAutoPopulatePack();   // re-seed from C if Cmin was cleared
+});
+
+// Cmax — track ownership; revert-on-invalid on blur; re-populate if cleared
+inputCmax.addEventListener('input', () => {
+  if (inputCmax.value.trim() !== '') {
+    packFieldUserSet.Cmax = true;
+    inputCmax.classList.remove('auto-populated');
+  } else {
+    packFieldUserSet.Cmax = false;
+  }
+});
+inputCmax.addEventListener('blur', () => {
+  if (validateCmax()) {
+    inputCmax.dataset.lastValid = inputCmax.value;
+    if (inputCmax.value.trim() === '') packFieldUserSet.Cmax = false;
+  } else {
+    inputCmax.value = inputCmax.dataset.lastValid ?? '';
+    if (inputCmax.value.trim() === '') packFieldUserSet.Cmax = false;
+    validateCmax();
+  }
+  tryAutoPopulatePack();   // re-seed from C if Cmax was cleared
+});
+
+// Initial auto-populate — seeds Cmin/Cmax from the default C value (2000 mAh)
+tryAutoPopulatePack();
+
+// ─────────────────────────────────────────────
+// TIME Card — inputs and validation
+// ─────────────────────────────────────────────
+
+const inputT    = document.getElementById('input-T');
+const inputTmin = document.getElementById('input-Tmin');
+const inputTmax = document.getElementById('input-Tmax');  // read-only; calculated later
+const timeErrorEl = document.getElementById('time-error');
+const timeErrors  = { T: '', Tmin: '' };
+
+// ── Show highest-priority TIME error ──
+function showTimeError() {
+  timeErrorEl.textContent = timeErrors.T || timeErrors.Tmin || '';
+}
+
+// ── Apply or clear one TIME field's error state ──
+function setTimeFieldState(inputEl, fieldKey, message, isError = false) {
+  if (isError) {
+    inputEl.classList.add('input-error');
+    timeErrors[fieldKey] = message;
+  } else {
+    inputEl.classList.remove('input-error');
+    timeErrors[fieldKey] = '';
+  }
+  showTimeError();
+}
+
+// ── Precision helper for time: max 1 decimal place ──
+function isValidTimePrecision(rawStr) {
+  return /^\d+(\.\d)?$/.test(rawStr.trim());
+}
+
+// ── Validate T (Nominal run time, hours) ──
+// Rules: must be > 0 h, max 1 decimal place.
+// Also re-checks Tmin because its upper bound depends on T.
+function validateT() {
+  const raw = inputT.value.trim();
+
+  if (raw === '') {
+    setTimeFieldState(inputT, 'T', '');
+    validateTmin();            // re-check Tmin (constraint relaxes when T is cleared)
+    return true;
+  }
+
+  const val = Number(raw);
+  if (isNaN(val) || val <= 0) {
+    setTimeFieldState(inputT, 'T', 'Nominal must be > 0 h', true);
+    validateTmin();
+    return false;
+  }
+  if (!isValidTimePrecision(raw)) {
+    setTimeFieldState(inputT, 'T', 'Max 1 decimal place', true);
+    validateTmin();
+    return false;
+  }
+
+  setTimeFieldState(inputT, 'T', '');
+  validateTmin();
+  return true;
+}
+
+// ── Validate Tmin (minimum run time, hours) ──
+// Rules: must be > 0 h, max 1 decimal place, Tmin ≤ T.
+function validateTmin() {
+  const raw = inputTmin.value.trim();
+
+  if (raw === '') {
+    setTimeFieldState(inputTmin, 'Tmin', '');
+    return true;
+  }
+
+  const val = Number(raw);
+  if (isNaN(val) || val <= 0) {
+    setTimeFieldState(inputTmin, 'Tmin', 'Min must be > 0 h', true);
+    return false;
+  }
+  if (!isValidTimePrecision(raw)) {
+    setTimeFieldState(inputTmin, 'Tmin', 'Max 1 decimal place', true);
+    return false;
+  }
+
+  // Cross-check: Tmin ≤ T (only when T is present and valid)
+  const tRaw = inputT.value.trim();
+  if (tRaw !== '') {
+    const tVal = Number(tRaw);
+    if (!isNaN(tVal) && tVal > 0 && val > tVal) {
+      setTimeFieldState(inputTmin, 'Tmin', `Min must be ≤ ${tVal} h (≤ Nominal)`, true);
+      return false;
+    }
+  }
+
+  setTimeFieldState(inputTmin, 'Tmin', '');
+  return true;
+}
+
+// ── Attach TIME event listeners ──
+inputT.dataset.lastValid    = inputT.value;    // ""
+inputTmin.dataset.lastValid = inputTmin.value; // ""
+
+inputT.addEventListener('blur', () => {
+  if (validateT()) {
+    inputT.dataset.lastValid = inputT.value;
+  } else {
+    inputT.value = inputT.dataset.lastValid ?? '';
+    validateT();
+  }
+});
+
+inputTmin.addEventListener('blur', () => {
+  if (validateTmin()) {
+    inputTmin.dataset.lastValid = inputTmin.value;
+  } else {
+    inputTmin.value = inputTmin.dataset.lastValid ?? '';
+    validateTmin();
+  }
+});
+
+// ─────────────────────────────────────────────
+// Navigation bar — active-tab toggle
+// ─────────────────────────────────────────────
+
+document.querySelectorAll('.nav-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  });
+});
 
 // ─────────────────────────────────────────────
 // LOAD Cards — dynamic management and validation
@@ -253,34 +466,14 @@ function setLoadFieldState(i, inputEl, fieldKey, message, isError = false) {
   showLoadError(i);
 }
 
-// ── Update one output cell (combined value + unit) ──
-function setOutCell(i, field, rawVal) {
-  const el = document.getElementById(`lo${i}-${field}`);
-  if (!el) return;
-
-  const isNom  = (field === 'L');
-  const cls    = isNom ? 'load-out-nom' : 'load-out-rng';
-  const hasVal = rawVal !== '';
-  el.textContent = hasVal ? rawVal : '—';
-  el.className   = `${cls} ${hasVal ? 'has-value' : 'no-value'}`;
-}
-
-// ── Update all 5 output rows ──
+// ── Update the LOAD summary card ──
+// Reflects any change to LOAD input fields; delegates to updateTotalRow.
 function updateLoadOutput() {
-  for (let i = 0; i < LOAD_MAX; i++) {
-    const lEl    = document.getElementById(`input-L${i}`);
-    const lminEl = document.getElementById(`input-Lmin${i}`);
-    const lmaxEl = document.getElementById(`input-Lmax${i}`);
-
-    setOutCell(i, 'L',    lEl    ? lEl.value.trim() : '');
-    setOutCell(i, 'Lmin', lminEl ? lminEl.value.trim() : '');
-    setOutCell(i, 'Lmax', lmaxEl ? lmaxEl.value.trim() : '');
-  }
   updateTotalRow();
 }
 
-// ── Update the Total row — sum each column across all active LOAD cards ──
-// Only sums valid numeric entries; skips empty and invalid fields.
+// ── Update the LOAD summary card values ──
+// Sums Nom/Min/Max columns across all active LOAD x cards and displays totals.
 // Rounds to 1 decimal place to avoid floating-point artefacts.
 function updateTotalRow() {
   ['L', 'Lmin', 'Lmax'].forEach(field => {
@@ -298,21 +491,14 @@ function updateTotalRow() {
       hasAny  = true;
     }
 
-    const totalEl = document.getElementById(`lo-total-${field}`);
-    if (!totalEl) return;
-
-    const isNom = (field === 'L');
-    const cls   = isNom ? 'load-out-nom' : 'load-out-rng';
+    const summaryEl = document.getElementById(`ls-${field}`);
+    if (!summaryEl) return;
 
     if (hasAny) {
-      // Round to 1 decimal place, then strip trailing .0 if whole number
-      const rounded   = Math.round(sum * 10) / 10;
-      const formatted = Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
-      totalEl.textContent = formatted;
-      totalEl.className   = `${cls} has-value`;
+      const rounded = Math.round(sum * 10) / 10;
+      summaryEl.textContent = Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
     } else {
-      totalEl.textContent = '—';
-      totalEl.className   = `${cls} no-value`;
+      summaryEl.textContent = '—';
     }
   });
 }
