@@ -181,14 +181,31 @@ function validateCmax() {
   return true;
 }
 
+// ── Revert-on-invalid helper ──
+// On blur: if the field value is invalid, silently restores the last known-good
+// value and re-validates (clearing any error). If valid, saves the new value.
+function blurValidate(inputEl, validateFn) {
+  if (validateFn()) {
+    inputEl.dataset.lastValid = inputEl.value;   // commit new good value
+  } else {
+    inputEl.value = inputEl.dataset.lastValid ?? '';  // restore previous good value
+    validateFn();                                // re-run to clear error styling
+  }
+}
+
 // ── Attach event listeners ──
 
-// Validate on blur only (when user leaves the field).
-// No validation while typing — avoids showing errors mid-entry on iOS and desktop.
-inputN.addEventListener('blur', validateN);
-inputC.addEventListener('blur', validateC);
-inputCmin.addEventListener('blur', validateCmin);
-inputCmax.addEventListener('blur', validateCmax);
+// Seed each field's last-known-good value from its current (default) value.
+inputN.dataset.lastValid    = inputN.value;    // "7"
+inputC.dataset.lastValid    = inputC.value;    // "2000"
+inputCmin.dataset.lastValid = inputCmin.value; // ""
+inputCmax.dataset.lastValid = inputCmax.value; // ""
+
+// Validate on blur only; revert to last valid if the new value is out-of-range.
+inputN.addEventListener('blur',    () => blurValidate(inputN,    validateN));
+inputC.addEventListener('blur',    () => blurValidate(inputC,    validateC));
+inputCmin.addEventListener('blur', () => blurValidate(inputCmin, validateCmin));
+inputCmax.addEventListener('blur', () => blurValidate(inputCmax, validateCmax));
 
 // ─────────────────────────────────────────────
 // LOAD Cards — dynamic management and validation
@@ -340,12 +357,14 @@ function tryAutoPopulateL(i) {
       formatted = Number.isInteger(r) ? String(r) : r.toFixed(1);  // ≤ 1 decimal
     }
     lEl.value = formatted;
+    lEl.dataset.lastValid = formatted;    // keep revert baseline in sync
     lEl.classList.add('auto-populated');
     setLoadFieldState(i, lEl, 'L', '');   // auto value is always in-range
   } else {
     // No valid Lmin/Lmax — clear L only if it was previously auto-populated
     if (lEl.classList.contains('auto-populated')) {
       lEl.value = '';
+      lEl.dataset.lastValid = '';         // keep revert baseline in sync
       lEl.classList.remove('auto-populated');
       setLoadFieldState(i, lEl, 'L', '');
     }
@@ -588,8 +607,13 @@ function attachLoadListeners(i) {
   const minBtn  = document.getElementById(`load-minus-${i}`);
   const plusBtn = document.getElementById(`load-plus-${i}`);
 
+  // Seed last-known-good values (all start empty for a new card)
+  lEl.dataset.lastValid    = lEl.value;
+  lminEl.dataset.lastValid = lminEl.value;
+  lmaxEl.dataset.lastValid = lmaxEl.value;
+
   // L: track ownership on every keystroke; update report card live;
-  //    but defer validation and error display to blur only.
+  //    defer validation and error display to blur only.
   lEl.addEventListener('input', () => {
     const raw = lEl.value.trim();
     if (raw !== '') {
@@ -600,14 +624,39 @@ function attachLoadListeners(i) {
     }
     updateLoadOutput();                // live update to report card (no error check)
   });
-  lEl.addEventListener('blur', () => validateL(i));
+  lEl.addEventListener('blur', () => {
+    if (validateL(i)) {
+      lEl.dataset.lastValid = lEl.value;   // commit good value
+    } else {
+      // Invalid — restore previous good value (only if user-set; auto values are always valid)
+      if (loadLUserSet[i]) {
+        lEl.value = lEl.dataset.lastValid ?? '';
+        if (lEl.value === '') loadLUserSet[i] = false;  // cleared → back to auto-populate mode
+        validateL(i);                  // re-validate to clear error styling
+      }
+    }
+  });
 
-  // Lmin / Lmax: update report card live; validate (errors + auto-populate) on blur only.
+  // Lmin / Lmax: update report card live; revert-on-invalid on blur.
   lminEl.addEventListener('input', updateLoadOutput);
-  lminEl.addEventListener('blur',  () => validateLmin(i));
+  lminEl.addEventListener('blur', () => {
+    if (validateLmin(i)) {
+      lminEl.dataset.lastValid = lminEl.value;
+    } else {
+      lminEl.value = lminEl.dataset.lastValid ?? '';
+      validateLmin(i);                 // re-validate to clear error styling
+    }
+  });
 
   lmaxEl.addEventListener('input', updateLoadOutput);
-  lmaxEl.addEventListener('blur',  () => validateLmax(i));
+  lmaxEl.addEventListener('blur', () => {
+    if (validateLmax(i)) {
+      lmaxEl.dataset.lastValid = lmaxEl.value;
+    } else {
+      lmaxEl.value = lmaxEl.dataset.lastValid ?? '';
+      validateLmax(i);                 // re-validate to clear error styling
+    }
+  });
 
   if (minBtn)  minBtn.addEventListener('click',  removeLastLoadCard);
   if (plusBtn) plusBtn.addEventListener('click', addLoadCard);
@@ -650,9 +699,9 @@ function addLoadCard() {
           <div class="load-field">
             <label class="load-label" for="input-Lmax${i}">Max</label>
             <div class="load-input-row">
-              <input class="field-input load-input input-max" type="number"
+              <input class="field-input load-input" type="number"
                      id="input-Lmax${i}" inputmode="decimal" step="0.1">
-              <span class="load-unit">W</span>
+              <!-- No unit label: Max right edge is flush; unit implied by Nominal/Min -->
             </div>
           </div>
         </div><!-- /load-minmax-group -->

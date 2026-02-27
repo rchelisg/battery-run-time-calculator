@@ -313,12 +313,6 @@ body {
   width: 2.2rem;             /* narrower: just wide enough for one digit */
 }
 
-/* Max field — right-align text so digits stack from the right edge */
-.pack-input.input-max,
-.load-input.input-max {
-  text-align: right;
-}
-
 /* Inline row: input + unit side by side */
 .pack-input-row {
   display: flex;
@@ -555,7 +549,8 @@ body {
 }
 
 .load-out-th-label {
-  text-align: center;
+  text-align: left;
+  padding-left: 2ch;             /* visually centre (W) within the 7-char "LOAD x:" width */
   color: var(--color-text-secondary);
   padding-bottom: 0.15rem;
   font-weight: 600;
