@@ -508,13 +508,80 @@ inputTmin.addEventListener('blur', () => {
 });
 
 // ─────────────────────────────────────────────
-// Navigation bar — active-tab toggle
+// Page system — nav bar, show/hide, reset on switch
 // ─────────────────────────────────────────────
 
+// Maps each nav-button ID → its page div ID
+const PAGE_MAP = {
+  'nav-calc': 'page-calc',
+  'nav-time': 'page-time',
+  'nav-cost': 'page-cost',
+  'nav-load': 'page-load',
+};
+
+// ── Switch to a page ──
+// If already on that page, stays and does nothing.
+// Otherwise: hides all pages, shows target, updates nav active state, resets page.
+function switchPage(pageId) {
+  const current = document.querySelector('.page:not(.page-hidden)');
+  if (current && current.id === pageId) return;   // already here — no-op
+
+  document.querySelectorAll('.page').forEach(p => p.classList.add('page-hidden'));
+  const target = document.getElementById(pageId);
+  if (target) target.classList.remove('page-hidden');
+
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  const navId = Object.keys(PAGE_MAP).find(k => PAGE_MAP[k] === pageId);
+  if (navId) document.getElementById(navId)?.classList.add('active');
+
+  resetPage(pageId);
+}
+
+// ── Reset a page to its default state ──
+// Called every time the user taps into a page.
+// Only PAGE Calc has content yet; others are no-ops.
+function resetPage(pageId) {
+  if (pageId !== 'page-calc') return;
+
+  // ── PACK: restore defaults (N = 7, C = 2000; Cmin/Cmax cleared for auto-seed) ──
+  inputN.value             = '7';
+  inputN.dataset.lastValid = '7';
+  setFieldState(inputN, 'N', '');
+
+  inputC.value             = '2000';
+  inputC.dataset.lastValid = '2000';
+  setFieldState(inputC, 'C', '');
+
+  inputCmin.value             = '';
+  inputCmin.dataset.lastValid = '';
+  inputCmin.classList.remove('auto-populated');
+  packFieldUserSet.Cmin = false;
+  setFieldState(inputCmin, 'Cmin', '');
+
+  inputCmax.value             = '';
+  inputCmax.dataset.lastValid = '';
+  inputCmax.classList.remove('auto-populated');
+  packFieldUserSet.Cmax = false;
+  setFieldState(inputCmax, 'Cmax', '');
+
+  tryAutoPopulatePack();   // re-seeds Cmin/Cmax from C = 2000
+
+  // ── LOAD: remove all cards and add one fresh empty card ──
+  while (loadCount > 0) {
+    loadCount--;
+    const card = document.getElementById(`load-card-${loadCount}`);
+    if (card) loadContainer.removeChild(card);
+  }
+  loadErrors.length       = 0;
+  loadFieldUserSet.length = 0;
+  addLoadCard();   // triggers updateTotalRow → updateReportTime
+}
+
+// Attach nav-button → switchPage handlers
 document.querySelectorAll('.nav-btn').forEach(btn => {
   btn.addEventListener('click', () => {
-    document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
+    const pageId = PAGE_MAP[btn.id];
+    if (pageId) switchPage(pageId);
   });
 });
 
@@ -1069,6 +1136,66 @@ function removeLastLoadCard() {
 // REPORT TIME Card — formatting helpers and render function
 // ─────────────────────────────────────────────
 
+// ── Calculate run time (PAGE Calc) ──
+// Formula: E = N × 3.6 × C / 1000  (Wh)   T = E / L × 60  (Min)
+//
+// Spec (Solve for T given E and L):
+//   Build E-set  = { E, Emin (if Cmin present), Emax (if Cmax present) }
+//   Build L-set  = { L, Lmin (if present), Lmax (if present) }
+//   Candidates   = all (Ei / Lj) × 60
+//   T (nominal)  = E / L × 60  — always shown
+//   Tmin         = min(candidates)  shown only if < T
+//   Tmax         = max(candidates)  shown only if > T
+//
+// Returns { T, Tmin, Tmax } as strings ('' = absent/unknown → shows "—" in report).
+function calcRunTime(N, C, Cmin, Cmax, lsL, lsLmin, lsLmax) {
+  const n = parseInt(N, 10);
+  const c = parseFloat(C);
+  const l = parseFloat(lsL);
+
+  // All three nominal values must be valid to compute anything
+  if (!Number.isInteger(n) || n < 1 || n > 8)  return { T: '', Tmin: '', Tmax: '' };
+  if (isNaN(c) || c < 100  || c > 8000)        return { T: '', Tmin: '', Tmax: '' };
+  if (isNaN(l) || l <= 0)                       return { T: '', Tmin: '', Tmax: '' };
+
+  // Nominal energy (Wh) and run time (Min)
+  const E    = n * 3.6 * c / 1000;
+  const tNom = E / l * 60;
+
+  // Build E-set: add Emin/Emax only when Cmin/Cmax contain valid numbers
+  const eSet = [E];
+  const cminV = parseFloat(Cmin);
+  const cmaxV = parseFloat(Cmax);
+  if (Cmin !== '' && !isNaN(cminV) && cminV > 0) eSet.push(n * 3.6 * cminV / 1000);
+  if (Cmax !== '' && !isNaN(cmaxV) && cmaxV > 0) eSet.push(n * 3.6 * cmaxV / 1000);
+
+  // Build L-set: add Lmin/Lmax only when the summary spans show real numbers (not '—')
+  const lSet = [l];
+  const lminV = parseFloat(lsLmin);
+  const lmaxV = parseFloat(lsLmax);
+  if (lsLmin !== '—' && !isNaN(lminV) && lminV > 0) lSet.push(lminV);
+  if (lsLmax !== '—' && !isNaN(lmaxV) && lmaxV > 0) lSet.push(lmaxV);
+
+  // All (Ei / Lj) × 60 candidates — rounded to 1 decimal
+  const rd1  = v => Math.round(v * 10) / 10;
+  const cands = [];
+  for (const e of eSet) {
+    for (const lv of lSet) {
+      cands.push(rd1(e / lv * 60));
+    }
+  }
+
+  const T    = rd1(tNom);
+  const minC = Math.min(...cands);
+  const maxC = Math.max(...cands);
+
+  return {
+    T:    String(T),
+    Tmin: minC < T ? String(minC) : '',
+    Tmax: maxC > T ? String(maxC) : '',
+  };
+}
+
 // ── Format cell capacity (mAh) ──
 // Returns a 4-char right-aligned integer string, or "   —" if absent/invalid.
 // "Pad leading zero with space" means we use spaces, not zeros.
@@ -1110,19 +1237,20 @@ function fmtTime(raw) {
 }
 
 // ── Build and display the REPORT TIME formatted text ──
-// Called whenever PACK, LOAD, or TIME values change.
+// Called whenever PACK or LOAD values change (T is calculated, not user-entered here).
 //
 // Column layout — 15-char prefix, values start at column 16:
-//                Nom     Min   Max
-//  Cell Capacity: aaaa    bbbb  cccc   (mAH)
-//     Cell count:    d
-//           Load  eeee    ffff  gggg   (W)
-//             Lx  eeee    ffff  gggg   (W)   ← one per LOAD card
-//  ===> Run Time: kkkk    llll  mmmm   (Min)
+//                  Nom     Min   Max
+//   Cell Capacity: aaaa    bbbb  cccc   (mAH)
+//      Cell count:    d
+//            Load  eeee    ffff  gggg   (W)
+//              Lx  eeee    ffff  gggg   (W)   ← one per LOAD card
+//   ===> Run Time: kkkk    llll  mmmm   (Min)
 //
-// All values are 4-char right-aligned.  Colon labels = 14 chars + 1 space.
+// Column header: 16 spaces prefix so "Nom/Min/Max" right-align with their data columns.
+// All values: 4-char right-aligned.  Colon labels = 14 chars + 1 space.
 // No-colon labels (Load, Lx) = 13 chars + 2 spaces.
-// Title and Run Time line are bold; blank line after title, blank line before Run Time.
+// Title (.rpt-title) is larger; Run Time is bold; blank line after title, before Run Time.
 // No trailing blank line.
 function updateReportTime() {
   const pre = document.getElementById('report-time-pre');
@@ -1147,10 +1275,8 @@ function updateReportTime() {
   const lsLmin = lsLminEl ? lsLminEl.textContent.trim() : '—';
   const lsLmax = lsLmaxEl ? lsLmaxEl.textContent.trim() : '—';
 
-  // ── Gather TIME values ──
-  const T    = inputT    ? inputT.value.trim()    : '';
-  const Tmin = inputTmin ? inputTmin.value.trim() : '';
-  const Tmax = inputTmax ? inputTmax.value.trim() : '';
+  // ── Calculate run time from PACK + LOAD (E = N × 3.6 × C / 1000 Wh) ──
+  const { T, Tmin, Tmax } = calcRunTime(N, C, Cmin, Cmax, lsL, lsLmin, lsLmax);
 
   // Cell count: right-align single digit to 4 chars so it sits in the Nom column
   const nFmt = (N !== '') ? String(N).padStart(4, ' ') : '   —';
@@ -1160,8 +1286,9 @@ function updateReportTime() {
   //   colon labels  → 14-char label + 1 space  (e.g. "Cell Capacity: ")
   //   no-colon      → 13-char label + 2 spaces  (e.g. "         Load  ")
   // After prefix: nom(4) + "    " + min(4) + "  " + max(4) + "   " + "(unit)"
+  // Column header uses 16 spaces so "Nom/Min/Max" right-align with their columns.
   const title    = 'Battery Run Time Calculator';
-  const hdrLine  = '               Nom     Min   Max';
+  const hdrLine  = '                Nom     Min   Max';
   const capLine  = `Cell Capacity: ${fmtCap(C)}    ${fmtCap(Cmin)}  ${fmtCap(Cmax)}   (mAH)`;
   const cntLine  = `   Cell count: ${nFmt}`;
   const loadLine = `         Load  ${fmtLoad(lsL)}    ${fmtLoad(lsLmin)}  ${fmtLoad(lsLmax)}   (W)`;
@@ -1179,14 +1306,14 @@ function updateReportTime() {
     loadCardLines.push(`${label}${fmtLoad(lv)}    ${fmtLoad(lminv)}  ${fmtLoad(lmaxv)}   (W)`);
   }
 
-  // Run time summary: 4-char values; trailing (Min) unit
+  // Run time summary: 4-char calculated values; trailing (Min) unit
   const runTimeLine = `===> Run Time: ${fmtTime(T)}    ${fmtTime(Tmin)}  ${fmtTime(Tmax)}   (Min)`;
 
   // ── Assemble HTML ──
-  // Title bold; blank line after title; column header row; blank line before Run Time.
+  // Title uses .rpt-title class (larger font); Run Time bold; blank lines around Run Time.
   // No trailing blank line.
   const lines = [
-    `<strong>${esc(title)}</strong>`,
+    `<strong class="rpt-title">${esc(title)}</strong>`,
     '',                                        // blank line after title
     esc(hdrLine),                              // column header
     esc(capLine),

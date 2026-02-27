@@ -41,166 +41,186 @@
 
     <main class="app-main">
 
-      <!-- ── PACK card ──────────────────────────── -->
-      <div class="card pack-card">
-        <h2>PACK</h2>
+      <!-- ══ PAGE Calc ══════════════════════════════════════════════════════ -->
+      <!-- PACK + LOAD/L(x) + REPORT TIME (T calculated from E and L)        -->
+      <div id="page-calc" class="page">
 
-        <!-- Content area: input row + error strip -->
-        <div class="pack-content">
+        <!-- ── PACK card ──────────────────────────── -->
+        <div class="card pack-card">
+          <h2>PACK</h2>
 
-          <div class="pack-row">
+          <!-- Content area: input row + error strip -->
+          <div class="pack-content">
 
-            <!-- N: cells in series — single digit only -->
-            <div class="pack-field pack-field-narrow">
-              <label class="pack-label" for="input-N">Cells</label>
-              <input class="field-input pack-input" type="text" id="input-N"
-                     inputmode="numeric" maxlength="1" value="7">
-            </div>
+            <div class="pack-row">
 
-            <!-- C: nominal cell capacity — extra right margin separates it from Min/Max group -->
-            <div class="pack-field pack-field-nominal">
-              <label class="pack-label" for="input-C">Nominal</label>
-              <div class="pack-input-row">
-                <input class="field-input pack-input pack-input-c" type="number" id="input-C"
-                       inputmode="numeric" min="100" max="8000" step="1" value="2000">
-                <span class="pack-unit">mAh</span>
+              <!-- N: cells in series — single digit only -->
+              <div class="pack-field pack-field-narrow">
+                <label class="pack-label" for="input-N">Cells</label>
+                <input class="field-input pack-input" type="text" id="input-N"
+                       inputmode="numeric" maxlength="1" value="7">
               </div>
-            </div>
 
-            <!-- Cmin + Cmax: grouped and right-aligned via margin-left:auto -->
-            <div class="pack-minmax-group">
-
-              <div class="pack-field">
-                <label class="pack-label" for="input-Cmin">Min</label>
+              <!-- C: nominal cell capacity — extra right margin separates it from Min/Max group -->
+              <div class="pack-field pack-field-nominal">
+                <label class="pack-label" for="input-C">Nominal</label>
                 <div class="pack-input-row">
-                  <input class="field-input pack-input pack-input-c" type="number" id="input-Cmin"
-                         inputmode="numeric" step="1">
+                  <input class="field-input pack-input pack-input-c" type="number" id="input-C"
+                         inputmode="numeric" min="100" max="8000" step="1" value="2000">
                   <span class="pack-unit">mAh</span>
                 </div>
               </div>
 
-              <div class="pack-field">
-                <label class="pack-label" for="input-Cmax">Max</label>
-                <div class="pack-input-row">
-                  <input class="field-input pack-input pack-input-c" type="number" id="input-Cmax"
-                         inputmode="numeric" step="1">
-                  <span class="pack-unit unit-max">mAh</span>
+              <!-- Cmin + Cmax: grouped and right-aligned via margin-left:auto -->
+              <div class="pack-minmax-group">
+
+                <div class="pack-field">
+                  <label class="pack-label" for="input-Cmin">Min</label>
+                  <div class="pack-input-row">
+                    <input class="field-input pack-input pack-input-c" type="number" id="input-Cmin"
+                           inputmode="numeric" step="1">
+                    <span class="pack-unit">mAh</span>
+                  </div>
                 </div>
-              </div>
 
-            </div><!-- /pack-minmax-group -->
+                <div class="pack-field">
+                  <label class="pack-label" for="input-Cmax">Max</label>
+                  <div class="pack-input-row">
+                    <input class="field-input pack-input pack-input-c" type="number" id="input-Cmax"
+                           inputmode="numeric" step="1">
+                    <span class="pack-unit unit-max">mAh</span>
+                  </div>
+                </div>
 
-          </div><!-- /pack-row -->
+              </div><!-- /pack-minmax-group -->
 
-          <!-- Shared error strip — fixed height so card never resizes -->
-          <p class="pack-error" id="pack-error"></p>
+            </div><!-- /pack-row -->
 
-        </div><!-- /pack-content -->
+            <!-- Shared error strip — fixed height so card never resizes -->
+            <p class="pack-error" id="pack-error"></p>
 
-        <!-- Invisible spacer — matches LOAD +/- strip width; aligns Cmax/Lmax right edges -->
-        <div class="pack-ctrl-spacer" aria-hidden="true"></div>
+          </div><!-- /pack-content -->
 
-      </div><!-- /pack-card -->
+          <!-- Invisible spacer — matches LOAD +/- strip width; aligns Cmax/Lmax right edges -->
+          <div class="pack-ctrl-spacer" aria-hidden="true"></div>
 
-      <!-- ── LOAD group: summary + individual LOAD x cards (tight spacing) ── -->
-      <div class="load-group" id="load-group">
+        </div><!-- /pack-card -->
 
-        <!-- LOAD summary card — display-only totals; always shown at top of group -->
-        <div class="card load-card load-summary-card" id="load-summary-card">
-          <h2>LOAD</h2>
+        <!-- ── LOAD group: summary + individual LOAD x cards (tight spacing) ── -->
+        <div class="load-group" id="load-group">
+
+          <!-- LOAD summary card — display-only totals; always shown at top of group -->
+          <div class="card load-card load-summary-card" id="load-summary-card">
+            <h2>LOAD</h2>
+            <div class="load-content">
+              <div class="load-row">
+                <!-- Nominal total -->
+                <div class="load-field load-field-nominal">
+                  <label class="load-label">Nom</label>
+                  <div class="load-input-row">
+                    <span class="load-summary-val" id="ls-L">—</span>
+                    <span class="load-unit">W</span>
+                  </div>
+                </div>
+                <!-- Min + Max totals grouped right -->
+                <div class="load-minmax-group">
+                  <div class="load-field">
+                    <label class="load-label">Min</label>
+                    <div class="load-input-row">
+                      <span class="load-summary-val" id="ls-Lmin">—</span>
+                      <span class="load-unit">W</span>
+                    </div>
+                  </div>
+                  <div class="load-field">
+                    <label class="load-label">Max</label>
+                    <div class="load-input-row">
+                      <span class="load-summary-val" id="ls-Lmax">—</span>
+                      <span class="load-unit">W</span>
+                    </div>
+                  </div>
+                </div><!-- /load-minmax-group -->
+              </div><!-- /load-row -->
+            </div><!-- /load-content -->
+            <!-- Spacer matches LOAD cards' +/- strip width for consistent alignment -->
+            <div class="pack-ctrl-spacer" aria-hidden="true"></div>
+          </div><!-- /load-summary-card -->
+
+          <!-- LOAD x cards container — dynamically added / removed -->
+          <div id="load-cards-container"></div>
+
+        </div><!-- /load-group -->
+
+        <!-- ── REPORT TIME card ──────────────────── -->
+        <!-- Extra top margin gives 2× spacing after the last LOAD card   -->
+        <!-- T / Tmin / Tmax are calculated from PACK and LOAD (E = N×3.6×C/1000) -->
+        <div class="card report-time-card" id="report-time-card">
+          <pre id="report-time-pre" aria-live="polite" aria-label="Run time report"></pre>
+        </div><!-- /report-time-card -->
+
+      </div><!-- /page-calc -->
+
+      <!-- ══ PAGE Time ══════════════════════════════════════════════════════ -->
+      <div id="page-time" class="page page-hidden">
+
+        <!-- ── TIME card ──────────────────────────── -->
+        <!-- T = nominal run time; Tmin = minimum run time; Tmax = calculated (read-only) -->
+        <div class="card load-card time-card" id="time-card">
+          <h2>TIME</h2>
           <div class="load-content">
             <div class="load-row">
-              <!-- Nominal total -->
+
+              <!-- T: nominal run time (user entry) -->
               <div class="load-field load-field-nominal">
-                <label class="load-label">Nom</label>
+                <label class="load-label" for="input-T">Nominal</label>
                 <div class="load-input-row">
-                  <span class="load-summary-val" id="ls-L">—</span>
-                  <span class="load-unit">W</span>
+                  <input class="field-input load-input" type="number"
+                         id="input-T" inputmode="decimal" step="0.1">
+                  <span class="load-unit">Min</span>
                 </div>
               </div>
-              <!-- Min + Max totals grouped right -->
+
+              <!-- Tmin + Tmax grouped right -->
               <div class="load-minmax-group">
                 <div class="load-field">
-                  <label class="load-label">Min</label>
+                  <label class="load-label" for="input-Tmin">Min</label>
                   <div class="load-input-row">
-                    <span class="load-summary-val" id="ls-Lmin">—</span>
-                    <span class="load-unit">W</span>
+                    <input class="field-input load-input" type="number"
+                           id="input-Tmin" inputmode="decimal" step="0.1">
+                    <span class="load-unit">Min</span>
                   </div>
                 </div>
                 <div class="load-field">
                   <label class="load-label">Max</label>
                   <div class="load-input-row">
-                    <span class="load-summary-val" id="ls-Lmax">—</span>
-                    <span class="load-unit">W</span>
+                    <input class="field-input load-input time-calc-field"
+                           type="text" id="input-Tmax" readonly placeholder="—">
+                    <span class="load-unit unit-max">Min</span>
                   </div>
                 </div>
               </div><!-- /load-minmax-group -->
+
             </div><!-- /load-row -->
+            <p class="load-error" id="time-error"></p>
           </div><!-- /load-content -->
-          <!-- Spacer matches LOAD cards' +/- strip width for consistent alignment -->
-          <div class="pack-ctrl-spacer" aria-hidden="true"></div>
-        </div><!-- /load-summary-card -->
 
-        <!-- LOAD x cards container — dynamically added / removed -->
-        <div id="load-cards-container"></div>
+          <!-- Controls strip: buttons hidden — TIME card is always exactly one -->
+          <div class="load-controls">
+            <button class="load-btn" style="visibility:hidden" disabled aria-hidden="true">−</button>
+            <button class="load-btn" style="visibility:hidden" disabled aria-hidden="true">+</button>
+          </div>
+        </div><!-- /time-card -->
 
-      </div><!-- /load-group -->
+      </div><!-- /page-time -->
 
-      <!-- ── TIME card ──────────────────────────── -->
-      <!-- T = nominal run time; Tmin = minimum run time; Tmax = calculated (read-only) -->
-      <div class="card load-card time-card" id="time-card">
-        <h2>TIME</h2>
-        <div class="load-content">
-          <div class="load-row">
+      <!-- ══ PAGE Cost ══════════════════════════════════════════════════════ -->
+      <div id="page-cost" class="page page-hidden">
+        <!-- content coming soon -->
+      </div><!-- /page-cost -->
 
-            <!-- T: nominal run time (user entry) -->
-            <div class="load-field load-field-nominal">
-              <label class="load-label" for="input-T">Nominal</label>
-              <div class="load-input-row">
-                <input class="field-input load-input" type="number"
-                       id="input-T" inputmode="decimal" step="0.1">
-                <span class="load-unit">Min</span>
-              </div>
-            </div>
-
-            <!-- Tmin + Tmax grouped right -->
-            <div class="load-minmax-group">
-              <div class="load-field">
-                <label class="load-label" for="input-Tmin">Min</label>
-                <div class="load-input-row">
-                  <input class="field-input load-input" type="number"
-                         id="input-Tmin" inputmode="decimal" step="0.1">
-                  <span class="load-unit">Min</span>
-                </div>
-              </div>
-              <div class="load-field">
-                <label class="load-label">Max</label>
-                <div class="load-input-row">
-                  <input class="field-input load-input time-calc-field"
-                         type="text" id="input-Tmax" readonly placeholder="—">
-                  <span class="load-unit unit-max">Min</span>
-                </div>
-              </div>
-            </div><!-- /load-minmax-group -->
-
-          </div><!-- /load-row -->
-          <p class="load-error" id="time-error"></p>
-        </div><!-- /load-content -->
-
-        <!-- Controls strip: buttons hidden — TIME card is always exactly one -->
-        <div class="load-controls">
-          <button class="load-btn" style="visibility:hidden" disabled aria-hidden="true">−</button>
-          <button class="load-btn" style="visibility:hidden" disabled aria-hidden="true">+</button>
-        </div>
-      </div><!-- /time-card -->
-
-      <!-- ── REPORT TIME card ──────────────────── -->
-      <!-- Display-only card: monospace formatted run time report -->
-      <!-- Shows PACK, LOAD totals, per-LOAD breakdown, and TIME summary -->
-      <!-- Title is the first bold line inside the pre — no card h2 needed -->
-      <div class="card report-time-card" id="report-time-card">
-        <pre id="report-time-pre" aria-live="polite" aria-label="Run time report"></pre>
-      </div><!-- /report-time-card -->
+      <!-- ══ PAGE Load ══════════════════════════════════════════════════════ -->
+      <div id="page-load" class="page page-hidden">
+        <!-- content coming soon -->
+      </div><!-- /page-load -->
 
     </main>
 

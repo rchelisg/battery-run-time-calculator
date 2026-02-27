@@ -387,6 +387,24 @@ body {
   background-color: var(--color-bg);
 }
 
+/* ── Page containers — show/hide based on active nav tab ── */
+/* Each page is a flex column with standard card gap            */
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.page.page-hidden {
+  display: none;
+}
+
+/* Extra top margin on REPORT TIME card within PAGE Calc —
+   creates 2× the normal inter-card gap after the last LOAD card */
+#page-calc .report-time-card {
+  margin-top: var(--spacing-md);
+}
+
 /* ── Footer ─────────────────────────────────── */
 .app-footer {
   text-align: center;
@@ -694,12 +712,17 @@ body {
 /* Monospace pre block — plain text, no border, auto-scrolls if somehow wider */
 .report-time-pre {
   font-family: Menlo, Monaco, Consolas, 'Courier New', monospace;
-  font-size: 0.75rem;   /* ~12 px — keeps widest line (42 chars) within 375 px viewport */
+  font-size: 0.65rem;   /* one notch smaller than title — body lines are more compact */
   white-space: pre;     /* preserve exact spacing */
   overflow-x: auto;     /* safety scroll if content ever exceeds card width */
   margin: 0;
   line-height: 1.6;
   color: var(--color-text);
+}
+
+/* Title line stays at original size so it stands out from data lines */
+.report-time-pre .rpt-title {
+  font-size: 0.75rem;
 }
 
 /* ── Responsive scale-up for larger screens ─── */
