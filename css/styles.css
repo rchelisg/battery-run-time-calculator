@@ -313,6 +313,12 @@ body {
   width: 2.2rem;             /* narrower: just wide enough for one digit */
 }
 
+/* Max field — right-align text so digits stack from the right edge */
+.pack-input.input-max,
+.load-input.input-max {
+  text-align: right;
+}
+
 /* Inline row: input + unit side by side */
 .pack-input-row {
   display: flex;
@@ -526,8 +532,16 @@ body {
   table-layout: fixed;
   border-collapse: collapse;
   font-size: 0.78rem;
-  font-family: monospace;
+  /* Explicit monospace stack: Menlo (macOS/iOS) → Consolas (Windows) → fallback */
+  font-family: Menlo, Monaco, Consolas, 'Courier New', monospace;
   line-height: 1.45;
+}
+
+/* Force monospace inheritance into th/td — some browsers don't cascade font into cells */
+.load-out-table th,
+.load-out-table td {
+  font-family: inherit;
+  font-size: inherit;
 }
 
 /* Column widths — percentages guarantee cross-platform consistency */

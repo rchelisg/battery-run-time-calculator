@@ -183,20 +183,12 @@ function validateCmax() {
 
 // ── Attach event listeners ──
 
-// N: validate on every keystroke (input) and when focus leaves (blur)
-// Note: keydown blocking is NOT used — e.preventDefault() on iOS virtual
-// keyboard is unreliable. The input/blur validators catch invalid values instead.
-inputN.addEventListener('input', validateN);
-inputN.addEventListener('blur',  validateN);
-
-inputC.addEventListener('input', validateC);
-inputC.addEventListener('blur',  validateC);
-
-inputCmin.addEventListener('input', validateCmin);
-inputCmin.addEventListener('blur',  validateCmin);
-
-inputCmax.addEventListener('input', validateCmax);
-inputCmax.addEventListener('blur',  validateCmax);
+// Validate on blur only (when user leaves the field).
+// No validation while typing — avoids showing errors mid-entry on iOS and desktop.
+inputN.addEventListener('blur', validateN);
+inputC.addEventListener('blur', validateC);
+inputCmin.addEventListener('blur', validateCmin);
+inputCmax.addEventListener('blur', validateCmax);
 
 // ─────────────────────────────────────────────
 // LOAD Cards — dynamic management and validation
@@ -596,24 +588,25 @@ function attachLoadListeners(i) {
   const minBtn  = document.getElementById(`load-minus-${i}`);
   const plusBtn = document.getElementById(`load-plus-${i}`);
 
+  // L: track ownership on every keystroke; update report card live;
+  //    but defer validation and error display to blur only.
   lEl.addEventListener('input', () => {
     const raw = lEl.value.trim();
     if (raw !== '') {
-      // User is typing — take ownership; disable auto-populate for this card
-      loadLUserSet[i] = true;
+      loadLUserSet[i] = true;          // user is typing — take ownership
       lEl.classList.remove('auto-populated');
     } else {
-      // User cleared the field — revert to auto-populate mode
-      loadLUserSet[i] = false;
+      loadLUserSet[i] = false;         // field cleared — revert to auto-populate mode
     }
-    validateL(i);
+    updateLoadOutput();                // live update to report card (no error check)
   });
   lEl.addEventListener('blur', () => validateL(i));
 
-  lminEl.addEventListener('input', () => validateLmin(i));
+  // Lmin / Lmax: update report card live; validate (errors + auto-populate) on blur only.
+  lminEl.addEventListener('input', updateLoadOutput);
   lminEl.addEventListener('blur',  () => validateLmin(i));
 
-  lmaxEl.addEventListener('input', () => validateLmax(i));
+  lmaxEl.addEventListener('input', updateLoadOutput);
   lmaxEl.addEventListener('blur',  () => validateLmax(i));
 
   if (minBtn)  minBtn.addEventListener('click',  removeLastLoadCard);
@@ -657,7 +650,7 @@ function addLoadCard() {
           <div class="load-field">
             <label class="load-label" for="input-Lmax${i}">Max</label>
             <div class="load-input-row">
-              <input class="field-input load-input" type="number"
+              <input class="field-input load-input input-max" type="number"
                      id="input-Lmax${i}" inputmode="decimal" step="0.1">
               <span class="load-unit">W</span>
             </div>
