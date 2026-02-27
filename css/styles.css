@@ -685,12 +685,6 @@ body {
   padding: var(--spacing-md);
 }
 
-/* Override default h2 size — slightly smaller is fine for a report header */
-.report-time-card h2 {
-  font-size: var(--font-size-lg);
-  margin-bottom: var(--spacing-xs);
-}
-
 /* Monospace pre block — plain text, no border, auto-scrolls if somehow wider */
 .report-time-pre {
   font-family: Menlo, Monaco, Consolas, 'Courier New', monospace;

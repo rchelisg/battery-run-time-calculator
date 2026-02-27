@@ -1105,8 +1105,16 @@ function fmtTime(raw) {
 
 // ── Build and display the REPORT TIME formatted text ──
 // Called whenever PACK, LOAD, or TIME values change.
-// Labels are right-aligned to 14 chars; 3 spaces separate label from values.
-// The "===> Run Time:" line is rendered in bold per spec.
+//
+// Column layout (all labels right-aligned to 14 chars, 3-char gap):
+//   Cell Capacity:   aaaa  bbbb  cccc    (mAH)
+//      Cell count:      d
+//            Load:   eeee  ffff  gggg    (W)
+//              Lx:   eeee  ffff  gggg    (W)   ← one per LOAD card
+//   ===> Run Time:   kkkk  llll  mmmm    (Min) ← 5-char "###.#" values
+//
+// Values: 4-char right-aligned for capacity/load; 5-char "###.#" for time.
+// Title and Run Time line are bold; blank lines after title, before and after Run Time.
 function updateReportTime() {
   const pre = document.getElementById('report-time-pre');
   if (!pre) return;
@@ -1135,14 +1143,18 @@ function updateReportTime() {
   const Tmin = inputTmin ? inputTmin.value.trim() : '';
   const Tmax = inputTmax ? inputTmax.value.trim() : '';
 
-  // ── Build text lines ──
-  // All labels are right-aligned to 14 chars; then 3 spaces before values.
-  const title    = 'Battery Run Time Calculator';
-  const capLine  = `Cell Capacity:   ${fmtCap(C)}mAh  ${fmtCap(Cmin)}mAh  ${fmtCap(Cmax)}mAh`;
-  const cntLine  = `   Cell count:   ${N || '—'}`;
-  const loadLine = `         Load:   ${fmtLoad(lsL)}W  ${fmtLoad(lsLmin)}W  ${fmtLoad(lsLmax)}W`;
+  // Cell count: right-align single digit to 4 chars so it sits in the Nom column
+  const nFmt = (N !== '') ? String(N).padStart(4, ' ') : '   —';
 
-  // Per-LOAD-card breakdown: one line per active card (label "L0:" … "L4:")
+  // ── Build text lines ──
+  // Pattern: [14-char label]   [4-char nom]  [4-char min]  [4-char max]    (unit)
+  // (run time uses 5-char "###.#" values instead of 4-char integers)
+  const title    = 'Battery Run Time Calculator';
+  const capLine  = `Cell Capacity:   ${fmtCap(C)}  ${fmtCap(Cmin)}  ${fmtCap(Cmax)}    (mAH)`;
+  const cntLine  = `   Cell count:   ${nFmt}`;
+  const loadLine = `         Load:   ${fmtLoad(lsL)}  ${fmtLoad(lsLmin)}  ${fmtLoad(lsLmax)}    (W)`;
+
+  // Per-LOAD-card breakdown: one line per active card
   const loadCardLines = [];
   for (let i = 0; i < loadCount; i++) {
     const lEl    = document.getElementById(`input-L${i}`);
@@ -1151,22 +1163,25 @@ function updateReportTime() {
     const lv    = lEl    ? lEl.value.trim()    : '';
     const lminv = lminEl ? lminEl.value.trim() : '';
     const lmaxv = lmaxEl ? lmaxEl.value.trim() : '';
-    const label = `L${i}:`.padStart(14, ' ');   // right-align to 14 chars
-    loadCardLines.push(`${label}   ${fmtLoad(lv)}W  ${fmtLoad(lminv)}W  ${fmtLoad(lmaxv)}W`);
+    const label = `L${i}:`.padStart(14, ' ');   // right-align label to 14 chars
+    loadCardLines.push(`${label}   ${fmtLoad(lv)}  ${fmtLoad(lminv)}  ${fmtLoad(lmaxv)}    (W)`);
   }
 
-  // Run time summary line — bold per spec
-  const runTimeLine = `===> Run Time:   ${fmtTime(T)}  ${fmtTime(Tmin)}  ${fmtTime(Tmax)}`;
+  // Run time summary: 5-char "###.#" values; trailing (Min) unit
+  const runTimeLine = `===> Run Time:   ${fmtTime(T)}  ${fmtTime(Tmin)}  ${fmtTime(Tmax)}    (Min)`;
 
   // ── Assemble HTML ──
-  // All lines are plain escaped text; only the run time line is wrapped in <strong>
+  // Title bold; blank line after title; blank line before and after Run Time line.
   const lines = [
-    esc(title),
+    `<strong>${esc(title)}</strong>`,
+    '',                                        // blank line after title
     esc(capLine),
     esc(cntLine),
     esc(loadLine),
     ...loadCardLines.map(esc),
-    `<strong>${esc(runTimeLine)}</strong>`
+    '',                                        // blank line before Run Time
+    `<strong>${esc(runTimeLine)}</strong>`,
+    ''                                         // blank line after Run Time
   ];
 
   pre.innerHTML = lines.join('\n');
