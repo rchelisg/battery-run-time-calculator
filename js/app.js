@@ -1241,14 +1241,15 @@ function fmtTime(raw) {
 //   Cell Capacity: aaaa    bbbb  cccc   (mAH)
 //      Cell count:    d
 //                                       ← blank line 006
-//            Load  eeee    ffff  gggg   (W)
-//              Lx  eeee    ffff  gggg   (W)   ← one per LOAD card (grey)
-//   ===> Run Time: kkkkk   lllll mmmmm  (Min) ← 5-char values, bold+larger
+//            Load: eeee    ffff  gggg   (W)
+//              Lx: eeee    ffff  gggg   (W)   ← one per LOAD card (grey)
+//   ===> Run Time: kkkkk   lllll mmmmm  (Min) ← 5-char values, bold
 //
 // Column header: 16 spaces so "Nom/Min/Max" right-align with Cap/Load 4-char columns.
-// Cap/Load values: 4-char right-aligned.  Run Time values: 5-char right-aligned.
-// Colon labels = 14 chars + 1 space.  No-colon labels (Load, Lx) = 13 chars + 2 spaces.
-// Title (.rpt-title) is largest; Run Time is bold + .rpt-runtime; Lx lines = .rpt-loadx.
+// All values: 4-char right-aligned except Run Time (5-char).
+// All colon labels: 14-char label + 1 space = 15-char prefix.
+// Title (.rpt-title) and Run Time (.rpt-runtime) are bold via <strong>; all same font size.
+// Lx lines = .rpt-loadx (grey).
 // Blank lines: after title (002), between Cell count and Load (006), before Run Time.
 // No trailing blank line.
 function updateReportTime() {
@@ -1281,18 +1282,16 @@ function updateReportTime() {
   const nFmt = (N !== '') ? String(N).padStart(4, ' ') : '   —';
 
   // ── Build text lines ──
-  // 15-char prefix for all labels:
-  //   colon labels  → 14-char label + 1 space  (e.g. "Cell Capacity: ")
-  //   no-colon      → 13-char label + 2 spaces  (e.g. "         Load  ")
+  // All labels use 15-char prefix: 14-char label + colon + 1 space (e.g. "Cell Capacity: ")
   // After prefix: nom(4) + "    " + min(4) + "  " + max(4) + "   " + "(unit)"
   // Column header uses 16 spaces so "Nom/Min/Max" right-align with their columns.
   const title    = 'Battery Run Time Calculator';
   const hdrLine  = '                Nom     Min   Max';
   const capLine  = `Cell Capacity: ${fmtCap(C)}    ${fmtCap(Cmin)}  ${fmtCap(Cmax)}   (mAH)`;
   const cntLine  = `   Cell count: ${nFmt}`;
-  const loadLine = `         Load  ${fmtLoad(lsL)}    ${fmtLoad(lsLmin)}  ${fmtLoad(lsLmax)}   (W)`;
+  const loadLine = `         Load: ${fmtLoad(lsL)}    ${fmtLoad(lsLmin)}  ${fmtLoad(lsLmax)}   (W)`;
 
-  // Per-LOAD-card breakdown: one line per active card (no colon — 13-char label + 2 spaces)
+  // Per-LOAD-card breakdown: one line per active card (colon label — 13-char padded + ': ')
   const loadCardLines = [];
   for (let i = 0; i < loadCount; i++) {
     const lEl    = document.getElementById(`input-L${i}`);
@@ -1301,7 +1300,7 @@ function updateReportTime() {
     const lv    = lEl    ? lEl.value.trim()    : '';
     const lminv = lminEl ? lminEl.value.trim() : '';
     const lmaxv = lmaxEl ? lmaxEl.value.trim() : '';
-    const label = `L${i}`.padStart(13, ' ') + '  ';   // 15-char prefix, no colon
+    const label = `L${i}`.padStart(13, ' ') + ': ';   // 15-char prefix, with colon
     loadCardLines.push(`${label}${fmtLoad(lv)}    ${fmtLoad(lminv)}  ${fmtLoad(lmaxv)}   (W)`);
   }
 
@@ -1309,8 +1308,8 @@ function updateReportTime() {
   const runTimeLine = `===> Run Time: ${fmtTime(T)}    ${fmtTime(Tmin)}  ${fmtTime(Tmax)}   (Min)`;
 
   // ── Assemble HTML ──
-  // Title uses .rpt-title class (largest); Run Time uses bold + .rpt-runtime (medium);
-  // Lx lines use .rpt-loadx (light grey). Blank lines: 002, 006, before Run Time.
+  // All lines same font size. Title (.rpt-title) and Run Time (.rpt-runtime) are bold
+  // via <strong>. Lx lines use .rpt-loadx (light grey). Blank lines: 002, 006, before Run Time.
   // No trailing blank line.
   const lines = [
     `<strong class="rpt-title">${esc(title)}</strong>`,

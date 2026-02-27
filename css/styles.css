@@ -717,7 +717,7 @@ body {
 /* Monospace pre block — plain text, no border, auto-scrolls if somehow wider */
 .report-time-pre {
   font-family: Menlo, Monaco, Consolas, 'Courier New', monospace;
-  font-size: 0.55rem;   /* body lines compact; title/.rpt-runtime override upward */
+  font-size: 0.5rem;    /* uniform size — all lines same width so columns stay aligned */
   white-space: pre;     /* preserve exact spacing */
   overflow-x: auto;     /* safety scroll if content ever exceeds card width */
   margin: 0;
@@ -725,15 +725,8 @@ body {
   color: var(--color-text);
 }
 
-/* Title line — largest, stands out from all data lines */
-.report-time-pre .rpt-title {
-  font-size: 0.75rem;
-}
-
-/* Run Time line — one size up from body, makes it easy to find */
-.report-time-pre .rpt-runtime {
-  font-size: 0.65rem;
-}
+/* Title (.rpt-title) and Run Time (.rpt-runtime) use <strong> for bold distinction.
+   No font-size override — uniform size across all lines keeps monospace columns aligned. */
 
 /* Lx breakdown lines — light grey to distinguish from the LOAD summary total */
 .report-time-pre .rpt-loadx {
