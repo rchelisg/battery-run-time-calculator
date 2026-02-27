@@ -1029,7 +1029,7 @@ function addLoadCard() {
             <div class="load-input-row">
               <input class="field-input load-input" type="number"
                      id="input-Lmax${i}" inputmode="decimal" step="0.1">
-              <span class="load-unit">W</span>
+              <span class="load-unit unit-max">W</span>
             </div>
           </div>
         </div><!-- /load-minmax-group -->
@@ -1093,28 +1093,37 @@ function fmtLoad(raw) {
 }
 
 // ── Format run time (Min) ──
-// Returns a 5-char right-aligned string always showing 1 decimal place
-// (e.g. " 10.5", "100.0"), or "    —" if absent/invalid.
+// Returns a 4-char right-aligned string.
+// Values 0.5 – 99.9 → "##.#" format (e.g. " 5.5", "99.9").
+// Values ≥ 100       → "####" format (e.g. " 100") — drop decimal to stay within 4 chars.
+// Absent/invalid     → "   —".
 function fmtTime(raw) {
   const s = (typeof raw === 'string') ? raw.trim() : String(raw);
-  if (s === '' || s === '—') return '    —';
+  if (s === '' || s === '—') return '   —';
   const n = parseFloat(s);
-  if (isNaN(n)) return '    —';
-  return n.toFixed(1).padStart(5, ' ');
+  if (isNaN(n)) return '   —';
+  const str = n.toFixed(1);
+  // "100.0" is 5 chars — overflows 4-char column; drop decimal for values ≥ 100
+  return (str.length > 4)
+    ? String(Math.round(n)).padStart(4, ' ')
+    : str.padStart(4, ' ');
 }
 
 // ── Build and display the REPORT TIME formatted text ──
 // Called whenever PACK, LOAD, or TIME values change.
 //
-// Column layout (all labels right-aligned to 14 chars, 3-char gap):
-//   Cell Capacity:   aaaa  bbbb  cccc    (mAH)
-//      Cell count:      d
-//            Load:   eeee  ffff  gggg    (W)
-//              Lx:   eeee  ffff  gggg    (W)   ← one per LOAD card
-//   ===> Run Time:   kkkk  llll  mmmm    (Min) ← 5-char "###.#" values
+// Column layout — 15-char prefix, values start at column 16:
+//                Nom     Min   Max
+//  Cell Capacity: aaaa    bbbb  cccc   (mAH)
+//     Cell count:    d
+//           Load  eeee    ffff  gggg   (W)
+//             Lx  eeee    ffff  gggg   (W)   ← one per LOAD card
+//  ===> Run Time: kkkk    llll  mmmm   (Min)
 //
-// Values: 4-char right-aligned for capacity/load; 5-char "###.#" for time.
-// Title and Run Time line are bold; blank lines after title, before and after Run Time.
+// All values are 4-char right-aligned.  Colon labels = 14 chars + 1 space.
+// No-colon labels (Load, Lx) = 13 chars + 2 spaces.
+// Title and Run Time line are bold; blank line after title, blank line before Run Time.
+// No trailing blank line.
 function updateReportTime() {
   const pre = document.getElementById('report-time-pre');
   if (!pre) return;
@@ -1147,14 +1156,17 @@ function updateReportTime() {
   const nFmt = (N !== '') ? String(N).padStart(4, ' ') : '   —';
 
   // ── Build text lines ──
-  // Pattern: [14-char label]   [4-char nom]  [4-char min]  [4-char max]    (unit)
-  // (run time uses 5-char "###.#" values instead of 4-char integers)
+  // 15-char prefix for all labels:
+  //   colon labels  → 14-char label + 1 space  (e.g. "Cell Capacity: ")
+  //   no-colon      → 13-char label + 2 spaces  (e.g. "         Load  ")
+  // After prefix: nom(4) + "    " + min(4) + "  " + max(4) + "   " + "(unit)"
   const title    = 'Battery Run Time Calculator';
-  const capLine  = `Cell Capacity:   ${fmtCap(C)}  ${fmtCap(Cmin)}  ${fmtCap(Cmax)}    (mAH)`;
-  const cntLine  = `   Cell count:   ${nFmt}`;
-  const loadLine = `         Load:   ${fmtLoad(lsL)}  ${fmtLoad(lsLmin)}  ${fmtLoad(lsLmax)}    (W)`;
+  const hdrLine  = '               Nom     Min   Max';
+  const capLine  = `Cell Capacity: ${fmtCap(C)}    ${fmtCap(Cmin)}  ${fmtCap(Cmax)}   (mAH)`;
+  const cntLine  = `   Cell count: ${nFmt}`;
+  const loadLine = `         Load  ${fmtLoad(lsL)}    ${fmtLoad(lsLmin)}  ${fmtLoad(lsLmax)}   (W)`;
 
-  // Per-LOAD-card breakdown: one line per active card
+  // Per-LOAD-card breakdown: one line per active card (no colon — 13-char label + 2 spaces)
   const loadCardLines = [];
   for (let i = 0; i < loadCount; i++) {
     const lEl    = document.getElementById(`input-L${i}`);
@@ -1163,25 +1175,26 @@ function updateReportTime() {
     const lv    = lEl    ? lEl.value.trim()    : '';
     const lminv = lminEl ? lminEl.value.trim() : '';
     const lmaxv = lmaxEl ? lmaxEl.value.trim() : '';
-    const label = `L${i}:`.padStart(14, ' ');   // right-align label to 14 chars
-    loadCardLines.push(`${label}   ${fmtLoad(lv)}  ${fmtLoad(lminv)}  ${fmtLoad(lmaxv)}    (W)`);
+    const label = `L${i}`.padStart(13, ' ') + '  ';   // 15-char prefix, no colon
+    loadCardLines.push(`${label}${fmtLoad(lv)}    ${fmtLoad(lminv)}  ${fmtLoad(lmaxv)}   (W)`);
   }
 
-  // Run time summary: 5-char "###.#" values; trailing (Min) unit
-  const runTimeLine = `===> Run Time:   ${fmtTime(T)}  ${fmtTime(Tmin)}  ${fmtTime(Tmax)}    (Min)`;
+  // Run time summary: 4-char values; trailing (Min) unit
+  const runTimeLine = `===> Run Time: ${fmtTime(T)}    ${fmtTime(Tmin)}  ${fmtTime(Tmax)}   (Min)`;
 
   // ── Assemble HTML ──
-  // Title bold; blank line after title; blank line before and after Run Time line.
+  // Title bold; blank line after title; column header row; blank line before Run Time.
+  // No trailing blank line.
   const lines = [
     `<strong>${esc(title)}</strong>`,
     '',                                        // blank line after title
+    esc(hdrLine),                              // column header
     esc(capLine),
     esc(cntLine),
     esc(loadLine),
     ...loadCardLines.map(esc),
     '',                                        // blank line before Run Time
-    `<strong>${esc(runTimeLine)}</strong>`,
-    ''                                         // blank line after Run Time
+    `<strong>${esc(runTimeLine)}</strong>`     // no trailing blank
   ];
 
   pre.innerHTML = lines.join('\n');

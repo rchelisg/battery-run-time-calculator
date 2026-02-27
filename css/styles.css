@@ -110,7 +110,7 @@ body {
 /* ── Main content ───────────────────────────── */
 .app-main {
   flex: 1;                         /* push footer to bottom */
-  padding: var(--spacing-lg) 0;
+  padding: 0.3rem 0;               /* minimal top gap — nav bar sits just above first card */
   display: flex;
   flex-direction: column;
   gap: var(--spacing-md);
@@ -331,11 +331,11 @@ body {
   flex-shrink: 0;
 }
 
-/* Invisible spacer — matches LOAD's +/- strip width (1.5 rem);
+/* Invisible spacer — matches LOAD's +/- strip width (1.2 rem);
    keeps Cmax and Lmax right edges vertically aligned across cards  */
 .pack-ctrl-spacer {
   flex-shrink: 0;
-  width: 1.5rem;
+  width: 1.2rem;
 }
 
 /* Shared error strip — full content width, fixed height, never shifts card size */
@@ -455,19 +455,19 @@ body {
   justify-content: space-between; /* − pinned to top, + pinned to bottom */
   align-items: center;
   flex-shrink: 0;
-  width: 1.5rem;          /* matches button width */
+  width: 1.2rem;          /* matches button width */
   padding: 0.15rem 0;     /* small breathing room at top and bottom */
 }
 
 /* Individual +/- button */
 .load-btn {
-  width: 1.5rem;
-  height: 1.5rem;
+  width: 1.2rem;
+  height: 1.2rem;
   border: 1.5px solid var(--color-border);
   border-radius: 4px;
   background: #fff;
   color: var(--color-text);
-  font-size: 1rem;
+  font-size: 0.85rem;
   line-height: 1;
   cursor: pointer;
   display: flex;
@@ -536,7 +536,7 @@ body {
   flex: none;                       /* override flex:1 from .field-input */
   text-align: center;
   padding: 0.08rem 0.2rem;
-  min-height: 26px;
+  min-height: 22px;
   font-size: var(--font-size-base); /* explicit 16px — prevent iOS auto-scaling */
   width: 2.8rem;                    /* fixed: enough for 4 digits */
 }
@@ -559,6 +559,12 @@ body {
   color: var(--color-text-secondary);
   white-space: nowrap;
   flex-shrink: 0;
+}
+
+/* Fixed min-width for the Max-column unit span — ensures right edges of
+   all three Max inputs (Cmax / Lmax / Tmax) align vertically across cards */
+.unit-max {
+  min-width: 2.2rem;
 }
 
 /* Shared error strip — specificity (0,2,0) beats .card p (0,1,1) */
