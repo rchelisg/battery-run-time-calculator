@@ -92,43 +92,54 @@
 
       <!-- ── LOAD output ──────────────────────── -->
       <div class="card load-output">
-        <!-- Column header row -->
-        <div class="load-out-header">
-          <span class="load-out-label">(W)</span>
-          <span class="load-out-hdr-nom">Nom</span>
-          <span class="load-out-hdr-rng">Min</span>
-          <span class="load-out-hdr-rng">Max</span>
-        </div>
-        <div class="load-out-row" id="load-out-0">
-          <span class="load-out-label">LOAD 0:</span>
-          <span class="load-out-nom no-value" id="lo0-L">—</span>
-          <span class="load-out-rng no-value" id="lo0-Lmin">—</span>
-          <span class="load-out-rng no-value" id="lo0-Lmax">—</span>
-        </div>
-        <div class="load-out-row" id="load-out-1">
-          <span class="load-out-label">LOAD 1:</span>
-          <span class="load-out-nom no-value" id="lo1-L">—</span>
-          <span class="load-out-rng no-value" id="lo1-Lmin">—</span>
-          <span class="load-out-rng no-value" id="lo1-Lmax">—</span>
-        </div>
-        <div class="load-out-row" id="load-out-2">
-          <span class="load-out-label">LOAD 2:</span>
-          <span class="load-out-nom no-value" id="lo2-L">—</span>
-          <span class="load-out-rng no-value" id="lo2-Lmin">—</span>
-          <span class="load-out-rng no-value" id="lo2-Lmax">—</span>
-        </div>
-        <div class="load-out-row" id="load-out-3">
-          <span class="load-out-label">LOAD 3:</span>
-          <span class="load-out-nom no-value" id="lo3-L">—</span>
-          <span class="load-out-rng no-value" id="lo3-Lmin">—</span>
-          <span class="load-out-rng no-value" id="lo3-Lmax">—</span>
-        </div>
-        <div class="load-out-row" id="load-out-4">
-          <span class="load-out-label">LOAD 4:</span>
-          <span class="load-out-nom no-value" id="lo4-L">—</span>
-          <span class="load-out-rng no-value" id="lo4-Lmin">—</span>
-          <span class="load-out-rng no-value" id="lo4-Lmax">—</span>
-        </div>
+        <table class="load-out-table">
+          <colgroup>
+            <col class="col-label">
+            <col class="col-nom">
+            <col class="col-rng">
+            <col class="col-rng">
+          </colgroup>
+          <thead>
+            <tr>
+              <th class="load-out-th-label">(W)</th>
+              <th class="load-out-th-num">Nom</th>
+              <th class="load-out-th-num">Min</th>
+              <th class="load-out-th-num">Max</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr id="load-out-0">
+              <td class="load-out-label">LOAD 0:</td>
+              <td class="load-out-nom no-value" id="lo0-L">—</td>
+              <td class="load-out-rng no-value" id="lo0-Lmin">—</td>
+              <td class="load-out-rng no-value" id="lo0-Lmax">—</td>
+            </tr>
+            <tr id="load-out-1">
+              <td class="load-out-label">LOAD 1:</td>
+              <td class="load-out-nom no-value" id="lo1-L">—</td>
+              <td class="load-out-rng no-value" id="lo1-Lmin">—</td>
+              <td class="load-out-rng no-value" id="lo1-Lmax">—</td>
+            </tr>
+            <tr id="load-out-2">
+              <td class="load-out-label">LOAD 2:</td>
+              <td class="load-out-nom no-value" id="lo2-L">—</td>
+              <td class="load-out-rng no-value" id="lo2-Lmin">—</td>
+              <td class="load-out-rng no-value" id="lo2-Lmax">—</td>
+            </tr>
+            <tr id="load-out-3">
+              <td class="load-out-label">LOAD 3:</td>
+              <td class="load-out-nom no-value" id="lo3-L">—</td>
+              <td class="load-out-rng no-value" id="lo3-Lmin">—</td>
+              <td class="load-out-rng no-value" id="lo3-Lmax">—</td>
+            </tr>
+            <tr id="load-out-4">
+              <td class="load-out-label">LOAD 4:</td>
+              <td class="load-out-nom no-value" id="lo4-L">—</td>
+              <td class="load-out-rng no-value" id="lo4-Lmin">—</td>
+              <td class="load-out-rng no-value" id="lo4-Lmax">—</td>
+            </tr>
+          </tbody>
+        </table>
       </div>
 
 

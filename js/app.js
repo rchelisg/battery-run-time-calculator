@@ -183,14 +183,9 @@ function validateCmax() {
 
 // ── Attach event listeners ──
 
-// N: block any key that isn't 1–8, Backspace, Delete, or navigation
-inputN.addEventListener('keydown', function(e) {
-  const nav = ['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight'];
-  if (nav.includes(e.key)) return;   // always allow navigation/deletion
-  if (!/^[1-8]$/.test(e.key)) e.preventDefault();  // block everything else
-});
-
-// Validate on every keystroke (input) and when focus leaves (blur)
+// N: validate on every keystroke (input) and when focus leaves (blur)
+// Note: keydown blocking is NOT used — e.preventDefault() on iOS virtual
+// keyboard is unreliable. The input/blur validators catch invalid values instead.
 inputN.addEventListener('input', validateN);
 inputN.addEventListener('blur',  validateN);
 

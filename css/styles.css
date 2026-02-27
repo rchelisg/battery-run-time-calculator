@@ -40,6 +40,9 @@ html {
   /* Prevent horizontal scroll on every screen size */
   overflow-x: hidden;
   width: 100%;
+  /* Prevent iOS Safari from auto-scaling text (e.g. in compact inputs) */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 body {
@@ -216,6 +219,7 @@ body {
 
 /* Vertical "PACK" title — rotated 180° so text reads bottom → top */
 .pack-card h2 {
+  -webkit-writing-mode: vertical-rl; /* iOS Safari requires the prefix */
   writing-mode: vertical-rl;        /* characters flow top → bottom first… */
   transform: rotate(180deg);        /* …then flip so they read upward */
   font-size: 0.95rem;
@@ -267,8 +271,10 @@ body {
 /* Compact input — overrides base .field-input sizing */
 .pack-input {
   text-align: center;
-  padding: 0.08rem 0.2rem;   /* further reduced for compactness */
-  min-height: 26px;          /* tighter than default 44px */
+  padding: 0.08rem 0.2rem;          /* further reduced for compactness */
+  min-height: 26px;                 /* tighter than default 44px */
+  font-size: var(--font-size-base); /* explicit 16px — prevent iOS auto-scaling */
+  width: 0;                         /* iOS Safari: allows flex to shrink type=number */
 }
 
 /* Narrow column for the single-digit N (Cells) field */
@@ -337,6 +343,7 @@ body {
 
 /* Vertical "LOADx" label — same rotation as PACK */
 .load-card h2 {
+  -webkit-writing-mode: vertical-rl; /* iOS Safari requires the prefix */
   writing-mode: vertical-rl;
   transform: rotate(180deg);
   font-size: 0.85rem;
@@ -429,6 +436,8 @@ body {
   text-align: center;
   padding: 0.08rem 0.2rem;
   min-height: 26px;
+  font-size: var(--font-size-base); /* explicit 16px — prevent iOS auto-scaling */
+  width: 0;                         /* iOS Safari: allows flex to shrink type=number */
 }
 
 /* Inline row: input + unit side by side */
@@ -456,66 +465,59 @@ body {
   line-height: 1.4;
 }
 
-/* ── LOAD output — tabular summary with header ── */
+/* ── LOAD output — table-based summary (cross-platform alignment) ── */
 .load-output {
   padding: 0.35rem var(--spacing-sm);   /* compact top/bottom padding */
 }
 
-/* Header row: Nom / Min / Max column labels */
-/* font-size MUST match .load-out-row so ch-based flex widths align */
-.load-out-header {
-  display: flex;
-  align-items: baseline;
-  font-size: 0.78rem;
-  font-family: monospace;
-  line-height: 1.4;
-  flex-wrap: nowrap;
-  color: var(--color-text-secondary);
-  margin-bottom: 0.15rem;
-  border-bottom: 1px solid var(--color-border);
-  padding-bottom: 0.1rem;
-}
-
-/* One row per LOAD slot */
-.load-out-row {
-  display: flex;
-  align-items: baseline;
+/* Full-width table; fixed layout so columns are sized by colgroup, not content */
+.load-out-table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
   font-size: 0.78rem;
   font-family: monospace;
   line-height: 1.45;
-  flex-wrap: nowrap;
 }
 
-/* "LOAD x:" label — same width in header and data rows */
-.load-out-label {
-  flex: 0 0 auto;
-  min-width: 7ch;
-  color: var(--color-text-secondary);
-  margin-right: 0.2em;
+/* Column widths — percentages guarantee cross-platform consistency */
+.col-label { width: 40%; }  /* "LOAD 0:" label column */
+.col-nom   { width: 20%; }  /* Nominal value */
+.col-rng   { width: 20%; }  /* Min and Max share this class */
+
+/* Header row */
+.load-out-table thead tr {
+  border-bottom: 1px solid var(--color-border);
 }
 
-/* "(W)" in the header sits in the label column — centre it */
-.load-out-header .load-out-label {
+.load-out-th-label {
   text-align: center;
+  color: var(--color-text-secondary);
+  padding-bottom: 0.15rem;
+  font-weight: 600;
 }
 
-/* Nominal column — shared sizing; data right-aligns, header centres */
+.load-out-th-num {
+  text-align: right;
+  color: var(--color-text-secondary);
+  padding-bottom: 0.15rem;
+  font-weight: 600;
+}
+
+/* Data rows */
+.load-out-label {
+  text-align: left;
+  color: var(--color-text-secondary);
+  padding-right: 0.3em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .load-out-nom,
-.load-out-hdr-nom {
-  flex: 0 0 5ch;
-  margin-right: 1.5em;
+.load-out-rng {
+  text-align: right;
 }
-.load-out-nom     { text-align: right;  }
-.load-out-hdr-nom { text-align: center; }
-
-/* Min / Max columns — shared sizing; data right-aligns, header centres */
-.load-out-rng,
-.load-out-hdr-rng {
-  flex: 0 0 5ch;
-  margin-right: 0.3em;
-}
-.load-out-rng     { text-align: right;  }
-.load-out-hdr-rng { text-align: center; }
 
 /* Colours: entry present = dark grey; no entry = light grey */
 .load-out-nom.has-value,
