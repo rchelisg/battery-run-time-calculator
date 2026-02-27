@@ -265,7 +265,7 @@ body {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  align-items: stretch;
+  align-items: flex-start;
 }
 
 /* Extra right margin on Nominal — guarantees a minimum gap before Min/Max group */
@@ -292,6 +292,7 @@ body {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  width: 3.6rem;            /* align label over input (matches pack-input-c width) */
 }
 
 /* Compact input — overrides base .field-input sizing */
@@ -313,6 +314,10 @@ body {
   width: 2.2rem;             /* narrower: just wide enough for one digit */
 }
 
+.pack-field-narrow .pack-label {
+  width: 2.2rem;             /* override: narrower label for the Cells (N) column */
+}
+
 /* Wider input for the three capacity fields (C, Cmin, Cmax) — extra 1–2 digit room */
 .pack-input-c { width: 3.6rem; }
 
@@ -331,11 +336,11 @@ body {
   flex-shrink: 0;
 }
 
-/* Invisible spacer — matches LOAD's +/- strip width (1.2 rem);
+/* Invisible spacer — matches LOAD's +/- strip width (1.0 rem);
    keeps Cmax and Lmax right edges vertically aligned across cards  */
 .pack-ctrl-spacer {
   flex-shrink: 0;
-  width: 1.2rem;
+  width: 1.0rem;
 }
 
 /* Shared error strip — full content width, fixed height, never shifts card size */
@@ -473,19 +478,19 @@ body {
   justify-content: space-between; /* − pinned to top, + pinned to bottom */
   align-items: center;
   flex-shrink: 0;
-  width: 1.2rem;          /* matches button width */
+  width: 1.0rem;          /* matches button width */
   padding: 0.15rem 0;     /* small breathing room at top and bottom */
 }
 
 /* Individual +/- button */
 .load-btn {
-  width: 1.2rem;
-  height: 1.2rem;
+  width: 1.0rem;
+  height: 1.0rem;
   border: 1.5px solid var(--color-border);
   border-radius: 4px;
   background: #fff;
   color: var(--color-text);
-  font-size: 0.85rem;
+  font-size: 0.7rem;
   line-height: 1;
   cursor: pointer;
   display: flex;
@@ -520,7 +525,7 @@ body {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  align-items: stretch;
+  align-items: flex-start;
 }
 
 /* Extra right margin on Nominal — guarantees a minimum gap before Min/Max group */
@@ -528,10 +533,9 @@ body {
   margin-right: 0.4rem;
 }
 
-/* Min+Max group — margin-left:auto pushes it to the right edge;
-   gap between Nominal and Min auto-adjusts with screen width              */
+/* Min+Max group — fixed left margin gives consistent ~4-digit gap after Nominal */
 .load-minmax-group {
-  margin-left: auto;
+  margin-left: 1rem;
   display: flex;
   gap: var(--spacing-xs);
   align-items: flex-start;
@@ -547,6 +551,7 @@ body {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  width: 2.8rem;            /* align label over input (matches load-input width) */
 }
 
 /* Compact number input — same sizing as pack-input */
@@ -554,7 +559,7 @@ body {
   flex: none;                       /* override flex:1 from .field-input */
   text-align: center;
   padding: 0.08rem 0.2rem;
-  min-height: 22px;
+  min-height: 16px;
   font-size: var(--font-size-base); /* explicit 16px — prevent iOS auto-scaling */
   width: 2.8rem;                    /* fixed: enough for 4 digits */
 }
@@ -712,7 +717,7 @@ body {
 /* Monospace pre block — plain text, no border, auto-scrolls if somehow wider */
 .report-time-pre {
   font-family: Menlo, Monaco, Consolas, 'Courier New', monospace;
-  font-size: 0.65rem;   /* one notch smaller than title — body lines are more compact */
+  font-size: 0.55rem;   /* body lines compact; title/.rpt-runtime override upward */
   white-space: pre;     /* preserve exact spacing */
   overflow-x: auto;     /* safety scroll if content ever exceeds card width */
   margin: 0;
@@ -720,9 +725,29 @@ body {
   color: var(--color-text);
 }
 
-/* Title line stays at original size so it stands out from data lines */
+/* Title line — largest, stands out from all data lines */
 .report-time-pre .rpt-title {
   font-size: 0.75rem;
+}
+
+/* Run Time line — one size up from body, makes it easy to find */
+.report-time-pre .rpt-runtime {
+  font-size: 0.65rem;
+}
+
+/* Lx breakdown lines — light grey to distinguish from the LOAD summary total */
+.report-time-pre .rpt-loadx {
+  color: #BDBDBD;
+}
+
+/* ── L(x) card — extra compactness overrides for dynamically created LOAD cards ── */
+/* Applied only to L(0), L(1), … cards (not the LOAD summary or TIME card)        */
+.load-x-card {
+  padding: 0.05rem var(--spacing-sm);
+}
+
+.load-x-card .load-error {
+  height: 0.7rem;
 }
 
 /* ── Responsive scale-up for larger screens ─── */
@@ -744,5 +769,10 @@ body {
   /* Keep load-card condensed on larger screens too */
   .load-card {
     padding: 0.15rem var(--spacing-sm);
+  }
+
+  /* Keep L(x) cards extra-compact on larger screens too */
+  .load-x-card {
+    padding: 0.05rem var(--spacing-sm);
   }
 }

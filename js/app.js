@@ -520,20 +520,23 @@ const PAGE_MAP = {
 };
 
 // ── Switch to a page ──
-// If already on that page, stays and does nothing.
-// Otherwise: hides all pages, shows target, updates nav active state, resets page.
+// Always calls resetPage so re-tapping the active button clears all entries.
+// Only updates the visible page and nav highlight when actually switching pages.
 function switchPage(pageId) {
   const current = document.querySelector('.page:not(.page-hidden)');
-  if (current && current.id === pageId) return;   // already here — no-op
 
-  document.querySelectorAll('.page').forEach(p => p.classList.add('page-hidden'));
-  const target = document.getElementById(pageId);
-  if (target) target.classList.remove('page-hidden');
+  if (!current || current.id !== pageId) {
+    // Different page — hide all, show target, update nav highlight
+    document.querySelectorAll('.page').forEach(p => p.classList.add('page-hidden'));
+    const target = document.getElementById(pageId);
+    if (target) target.classList.remove('page-hidden');
 
-  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-  const navId = Object.keys(PAGE_MAP).find(k => PAGE_MAP[k] === pageId);
-  if (navId) document.getElementById(navId)?.classList.add('active');
+    document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+    const navId = Object.keys(PAGE_MAP).find(k => PAGE_MAP[k] === pageId);
+    if (navId) document.getElementById(navId)?.classList.add('active');
+  }
 
+  // Always reset — clears entries and restores defaults even when re-tapping current page
   resetPage(pageId);
 }
 
@@ -1066,7 +1069,7 @@ function addLoadCard() {
   loadFieldUserSet[i] = { L: false, Lmin: false, Lmax: false };  // all fields start in auto-populate mode
 
   const card = document.createElement('div');
-  card.className = 'card load-card';
+  card.className = 'card load-card load-x-card';
   card.id = `load-card-${i}`;
   card.innerHTML = `
     <h2>L${i}</h2>
@@ -1220,20 +1223,14 @@ function fmtLoad(raw) {
 }
 
 // ── Format run time (Min) ──
-// Returns a 4-char right-aligned string.
-// Values 0.5 – 99.9 → "##.#" format (e.g. " 5.5", "99.9").
-// Values ≥ 100       → "####" format (e.g. " 100") — drop decimal to stay within 4 chars.
-// Absent/invalid     → "   —".
+// Returns a 5-char right-aligned string: "###.#" format (e.g. "  5.5", "100.0").
+// Absent/invalid → "    —".
 function fmtTime(raw) {
   const s = (typeof raw === 'string') ? raw.trim() : String(raw);
-  if (s === '' || s === '—') return '   —';
+  if (s === '' || s === '—') return '    —';
   const n = parseFloat(s);
-  if (isNaN(n)) return '   —';
-  const str = n.toFixed(1);
-  // "100.0" is 5 chars — overflows 4-char column; drop decimal for values ≥ 100
-  return (str.length > 4)
-    ? String(Math.round(n)).padStart(4, ' ')
-    : str.padStart(4, ' ');
+  if (isNaN(n)) return '    —';
+  return n.toFixed(1).padStart(5, ' ');
 }
 
 // ── Build and display the REPORT TIME formatted text ──
@@ -1243,14 +1240,16 @@ function fmtTime(raw) {
 //                  Nom     Min   Max
 //   Cell Capacity: aaaa    bbbb  cccc   (mAH)
 //      Cell count:    d
+//                                       ← blank line 006
 //            Load  eeee    ffff  gggg   (W)
-//              Lx  eeee    ffff  gggg   (W)   ← one per LOAD card
-//   ===> Run Time: kkkk    llll  mmmm   (Min)
+//              Lx  eeee    ffff  gggg   (W)   ← one per LOAD card (grey)
+//   ===> Run Time: kkkkk   lllll mmmmm  (Min) ← 5-char values, bold+larger
 //
-// Column header: 16 spaces prefix so "Nom/Min/Max" right-align with their data columns.
-// All values: 4-char right-aligned.  Colon labels = 14 chars + 1 space.
-// No-colon labels (Load, Lx) = 13 chars + 2 spaces.
-// Title (.rpt-title) is larger; Run Time is bold; blank line after title, before Run Time.
+// Column header: 16 spaces so "Nom/Min/Max" right-align with Cap/Load 4-char columns.
+// Cap/Load values: 4-char right-aligned.  Run Time values: 5-char right-aligned.
+// Colon labels = 14 chars + 1 space.  No-colon labels (Load, Lx) = 13 chars + 2 spaces.
+// Title (.rpt-title) is largest; Run Time is bold + .rpt-runtime; Lx lines = .rpt-loadx.
+// Blank lines: after title (002), between Cell count and Load (006), before Run Time.
 // No trailing blank line.
 function updateReportTime() {
   const pre = document.getElementById('report-time-pre');
@@ -1310,18 +1309,20 @@ function updateReportTime() {
   const runTimeLine = `===> Run Time: ${fmtTime(T)}    ${fmtTime(Tmin)}  ${fmtTime(Tmax)}   (Min)`;
 
   // ── Assemble HTML ──
-  // Title uses .rpt-title class (larger font); Run Time bold; blank lines around Run Time.
+  // Title uses .rpt-title class (largest); Run Time uses bold + .rpt-runtime (medium);
+  // Lx lines use .rpt-loadx (light grey). Blank lines: 002, 006, before Run Time.
   // No trailing blank line.
   const lines = [
     `<strong class="rpt-title">${esc(title)}</strong>`,
-    '',                                        // blank line after title
-    esc(hdrLine),                              // column header
-    esc(capLine),
-    esc(cntLine),
-    esc(loadLine),
-    ...loadCardLines.map(esc),
+    '',                                        // line 002 blank after title
+    esc(hdrLine),                              // line 003 column header
+    esc(capLine),                              // line 004 Cell Capacity
+    esc(cntLine),                              // line 005 Cell count
+    '',                                        // line 006 blank between Cell count and Load
+    esc(loadLine),                             // line 007 LOAD total
+    ...loadCardLines.map(l => `<span class="rpt-loadx">${esc(l)}</span>`),  // Lx grey
     '',                                        // blank line before Run Time
-    `<strong>${esc(runTimeLine)}</strong>`     // no trailing blank
+    `<strong class="rpt-runtime">${esc(runTimeLine)}</strong>`  // Run Time bold + larger
   ];
 
   pre.innerHTML = lines.join('\n');
