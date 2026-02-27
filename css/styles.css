@@ -678,6 +678,30 @@ body {
   outline: none;
 }
 
+/* ── REPORT TIME card — monospace formatted run time report ── */
+
+/* Reduced padding lets wider mono text fit on narrow screens (≥ 375 px) */
+.report-time-card {
+  padding: var(--spacing-md);
+}
+
+/* Override default h2 size — slightly smaller is fine for a report header */
+.report-time-card h2 {
+  font-size: var(--font-size-lg);
+  margin-bottom: var(--spacing-xs);
+}
+
+/* Monospace pre block — plain text, no border, auto-scrolls if somehow wider */
+.report-time-pre {
+  font-family: Menlo, Monaco, Consolas, 'Courier New', monospace;
+  font-size: 0.75rem;   /* ~12 px — keeps widest line (42 chars) within 375 px viewport */
+  white-space: pre;     /* preserve exact spacing */
+  overflow-x: auto;     /* safety scroll if content ever exceeds card width */
+  margin: 0;
+  line-height: 1.6;
+  color: var(--color-text);
+}
+
 /* ── Responsive scale-up for larger screens ─── */
 /* Tablets and desktops (768 px and up) */
 @media (min-width: 768px) {

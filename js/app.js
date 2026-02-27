@@ -89,6 +89,8 @@ function tryAutoPopulatePack() {
     if (cValid) autoSet(inputCmax, 'Cmax');
     else         autoClear(inputCmax, 'Cmax');
   }
+
+  updateReportTime();   // refresh report whenever PACK capacity values change
 }
 
 // ── Refresh the shared error strip ──
@@ -238,8 +240,11 @@ inputC.dataset.lastValid    = inputC.value;    // "2000"
 inputCmin.dataset.lastValid = inputCmin.value; // ""
 inputCmax.dataset.lastValid = inputCmax.value; // ""
 
-// N — simple blur validate (no auto-populate dependency)
-inputN.addEventListener('blur', () => blurValidate(inputN, validateN));
+// N — simple blur validate; also refresh report (N appears in "Cell count" line)
+inputN.addEventListener('blur', () => {
+  blurValidate(inputN, validateN);
+  updateReportTime();
+});
 
 // C — after revert-or-save, re-run auto-populate for Cmin/Cmax
 inputC.addEventListener('blur', () => {
@@ -374,6 +379,8 @@ function tryAutoPopulateTime() {
     if (tVal !== null) autoSet(inputTmin, 'Tmin', tVal);
     else               autoClear(inputTmin, 'Tmin');
   }
+
+  updateReportTime();   // refresh report whenever TIME values change
 }
 
 // ── Validate T (Nominal run time, Min) ──
@@ -586,6 +593,8 @@ function updateTotalRow() {
       summaryEl.textContent = '—';
     }
   });
+
+  updateReportTime();   // refresh report whenever LOAD totals change
 }
 
 // ── Auto-populate non-user-set fields from user-set ones ──
@@ -1050,6 +1059,113 @@ function removeLastLoadCard() {
   updateLoadOutput();
 }
 
+// ─────────────────────────────────────────────
+// REPORT TIME Card — formatting helpers and render function
+// ─────────────────────────────────────────────
+
+// ── Format cell capacity (mAh) ──
+// Returns a 4-char right-aligned integer string, or "   —" if absent/invalid.
+// "Pad leading zero with space" means we use spaces, not zeros.
+function fmtCap(raw) {
+  const s = (typeof raw === 'string') ? raw.trim() : String(raw);
+  if (s === '' || s === '—') return '   —';
+  const n = parseInt(s, 10);
+  if (isNaN(n)) return '   —';
+  return String(n).padStart(4, ' ');
+}
+
+// ── Format load (W) ──
+// Returns a 4-char right-aligned string preserving up to 1 decimal place,
+// or "   —" if absent/invalid.
+function fmtLoad(raw) {
+  const s = (typeof raw === 'string') ? raw.trim() : String(raw);
+  if (s === '' || s === '—') return '   —';
+  const n = parseFloat(s);
+  if (isNaN(n)) return '   —';
+  const display = Number.isInteger(n) ? String(n) : n.toFixed(1);
+  return display.padStart(4, ' ');
+}
+
+// ── Format run time (Min) ──
+// Returns a 5-char right-aligned string always showing 1 decimal place
+// (e.g. " 10.5", "100.0"), or "    —" if absent/invalid.
+function fmtTime(raw) {
+  const s = (typeof raw === 'string') ? raw.trim() : String(raw);
+  if (s === '' || s === '—') return '    —';
+  const n = parseFloat(s);
+  if (isNaN(n)) return '    —';
+  return n.toFixed(1).padStart(5, ' ');
+}
+
+// ── Build and display the REPORT TIME formatted text ──
+// Called whenever PACK, LOAD, or TIME values change.
+// Labels are right-aligned to 14 chars; 3 spaces separate label from values.
+// The "===> Run Time:" line is rendered in bold per spec.
+function updateReportTime() {
+  const pre = document.getElementById('report-time-pre');
+  if (!pre) return;
+
+  // Escape HTML special chars so plain text is safe inside innerHTML
+  function esc(s) {
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  // ── Gather PACK values ──
+  const N    = inputN    ? inputN.value.trim()    : '';
+  const C    = inputC    ? inputC.value.trim()    : '';
+  const Cmin = inputCmin ? inputCmin.value.trim() : '';
+  const Cmax = inputCmax ? inputCmax.value.trim() : '';
+
+  // ── Gather LOAD summary values (from the live summary spans) ──
+  const lsLEl    = document.getElementById('ls-L');
+  const lsLminEl = document.getElementById('ls-Lmin');
+  const lsLmaxEl = document.getElementById('ls-Lmax');
+  const lsL    = lsLEl    ? lsLEl.textContent.trim()    : '—';
+  const lsLmin = lsLminEl ? lsLminEl.textContent.trim() : '—';
+  const lsLmax = lsLmaxEl ? lsLmaxEl.textContent.trim() : '—';
+
+  // ── Gather TIME values ──
+  const T    = inputT    ? inputT.value.trim()    : '';
+  const Tmin = inputTmin ? inputTmin.value.trim() : '';
+  const Tmax = inputTmax ? inputTmax.value.trim() : '';
+
+  // ── Build text lines ──
+  // All labels are right-aligned to 14 chars; then 3 spaces before values.
+  const title    = 'Battery Run Time Calculator';
+  const capLine  = `Cell Capacity:   ${fmtCap(C)}mAh  ${fmtCap(Cmin)}mAh  ${fmtCap(Cmax)}mAh`;
+  const cntLine  = `   Cell count:   ${N || '—'}`;
+  const loadLine = `         Load:   ${fmtLoad(lsL)}W  ${fmtLoad(lsLmin)}W  ${fmtLoad(lsLmax)}W`;
+
+  // Per-LOAD-card breakdown: one line per active card (label "L0:" … "L4:")
+  const loadCardLines = [];
+  for (let i = 0; i < loadCount; i++) {
+    const lEl    = document.getElementById(`input-L${i}`);
+    const lminEl = document.getElementById(`input-Lmin${i}`);
+    const lmaxEl = document.getElementById(`input-Lmax${i}`);
+    const lv    = lEl    ? lEl.value.trim()    : '';
+    const lminv = lminEl ? lminEl.value.trim() : '';
+    const lmaxv = lmaxEl ? lmaxEl.value.trim() : '';
+    const label = `L${i}:`.padStart(14, ' ');   // right-align to 14 chars
+    loadCardLines.push(`${label}   ${fmtLoad(lv)}W  ${fmtLoad(lminv)}W  ${fmtLoad(lmaxv)}W`);
+  }
+
+  // Run time summary line — bold per spec
+  const runTimeLine = `===> Run Time:   ${fmtTime(T)}  ${fmtTime(Tmin)}  ${fmtTime(Tmax)}`;
+
+  // ── Assemble HTML ──
+  // All lines are plain escaped text; only the run time line is wrapped in <strong>
+  const lines = [
+    esc(title),
+    esc(capLine),
+    esc(cntLine),
+    esc(loadLine),
+    ...loadCardLines.map(esc),
+    `<strong>${esc(runTimeLine)}</strong>`
+  ];
+
+  pre.innerHTML = lines.join('\n');
+}
+
 // ── Footer timestamp ─────────────────────────
 // Prepend "YYYY-MM-DD HH:MM " to the footer copy at page-load time
 (function () {
@@ -1064,3 +1180,7 @@ function removeLastLoadCard() {
 
 // ── Initialise: create the first load card on page load ──
 addLoadCard();
+
+// Initial REPORT TIME render — populate with default PACK values (C=2000, N=7)
+// LOAD totals are populated by addLoadCard() above; TIME fields start empty.
+updateReportTime();
