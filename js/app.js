@@ -208,6 +208,9 @@ let loadCount = 0;
 // Per-card error registry: loadErrors[i] = { L: '', Lmin: '', Lmax: '' }
 const loadErrors = [];
 
+// Per-card flag: true = user has manually typed in L(i); false = auto-populate eligible
+const loadLUserSet = [];
+
 const loadContainer = document.getElementById('load-cards-container');
 
 // ── Precision helper ──
@@ -304,6 +307,61 @@ function updateTotalRow() {
   });
 }
 
+// ── Auto-populate L(i) from Lmin/Lmax when L is not user-set ──
+// Called after Lmin or Lmax changes, or when L is cleared.
+// Rules (per spec):
+//   • Only Lmin entered  → L = Lmin
+//   • Only Lmax entered  → L = Lmax
+//   • Both entered       → L = (Lmin + Lmax) / 2
+//   • Neither entered    → clear L if it was previously auto-populated
+// The computed value is always valid, so no validation errors are raised.
+// No-ops immediately if the user has manually entered L (loadLUserSet[i] = true).
+function tryAutoPopulateL(i) {
+  if (loadLUserSet[i]) return;   // user owns this field — never override
+
+  const lEl    = document.getElementById(`input-L${i}`);
+  const lminEl = document.getElementById(`input-Lmin${i}`);
+  const lmaxEl = document.getElementById(`input-Lmax${i}`);
+  if (!lEl) return;
+
+  const lminRaw = lminEl ? lminEl.value.trim() : '';
+  const lmaxRaw = lmaxEl ? lmaxEl.value.trim() : '';
+
+  // Only use values that are currently error-free
+  const lminVal = (lminRaw !== '' && loadErrors[i] && loadErrors[i].Lmin === '')
+    ? parseFloat(lminRaw) : null;
+  const lmaxVal = (lmaxRaw !== '' && loadErrors[i] && loadErrors[i].Lmax === '')
+    ? parseFloat(lmaxRaw) : null;
+
+  let autoVal = null;
+  if      (lminVal !== null && lmaxVal !== null) autoVal = (lminVal + lmaxVal) / 2;
+  else if (lminVal !== null)                     autoVal = lminVal;
+  else if (lmaxVal !== null)                     autoVal = lmaxVal;
+
+  if (autoVal !== null) {
+    // Apply same precision rules used for manual entry
+    let formatted;
+    if (autoVal > 20) {
+      formatted = String(Math.round(autoVal));          // whole number
+    } else {
+      const r = Math.round(autoVal * 10) / 10;
+      formatted = Number.isInteger(r) ? String(r) : r.toFixed(1);  // ≤ 1 decimal
+    }
+    lEl.value = formatted;
+    lEl.classList.add('auto-populated');
+    setLoadFieldState(i, lEl, 'L', '');   // auto value is always in-range
+  } else {
+    // No valid Lmin/Lmax — clear L only if it was previously auto-populated
+    if (lEl.classList.contains('auto-populated')) {
+      lEl.value = '';
+      lEl.classList.remove('auto-populated');
+      setLoadFieldState(i, lEl, 'L', '');
+    }
+  }
+
+  updateLoadOutput();
+}
+
 // ── Update +/- button visibility ──
 // The controls strip is always present (consistent card width).
 // Only the last card's buttons are visible; non-last cards have both hidden.
@@ -353,6 +411,7 @@ function validateL(i) {
     setLoadFieldState(i, inputEl, 'L', '');
     validateLmin(i, true);
     validateLmax(i, true);
+    tryAutoPopulateL(i);   // re-apply auto-populate since L is now empty
     updateLoadOutput();
     return true;
   }
@@ -413,7 +472,10 @@ function validateLmin(i, recheck = false) {
 
   const done = (ok) => {
     updateLoadOutput();
-    if (!recheck) validateLmax(i, true);   // re-check Lmax whenever Lmin changes
+    if (!recheck) {
+      validateLmax(i, true);   // re-check Lmax whenever Lmin changes
+      tryAutoPopulateL(i);     // re-compute L if not user-set
+    }
     return ok;
   };
 
@@ -479,7 +541,10 @@ function validateLmax(i, recheck = false) {
 
   const done = (ok) => {
     updateLoadOutput();
-    if (!recheck) validateLmin(i, true);   // re-check Lmin whenever Lmax changes
+    if (!recheck) {
+      validateLmin(i, true);   // re-check Lmin whenever Lmax changes
+      tryAutoPopulateL(i);     // re-compute L if not user-set
+    }
     return ok;
   };
 
@@ -531,8 +596,19 @@ function attachLoadListeners(i) {
   const minBtn  = document.getElementById(`load-minus-${i}`);
   const plusBtn = document.getElementById(`load-plus-${i}`);
 
-  lEl.addEventListener('input', () => validateL(i));
-  lEl.addEventListener('blur',  () => validateL(i));
+  lEl.addEventListener('input', () => {
+    const raw = lEl.value.trim();
+    if (raw !== '') {
+      // User is typing — take ownership; disable auto-populate for this card
+      loadLUserSet[i] = true;
+      lEl.classList.remove('auto-populated');
+    } else {
+      // User cleared the field — revert to auto-populate mode
+      loadLUserSet[i] = false;
+    }
+    validateL(i);
+  });
+  lEl.addEventListener('blur', () => validateL(i));
 
   lminEl.addEventListener('input', () => validateLmin(i));
   lminEl.addEventListener('blur',  () => validateLmin(i));
@@ -549,7 +625,8 @@ function addLoadCard() {
   if (loadCount >= LOAD_MAX) return;
 
   const i = loadCount;
-  loadErrors[i] = { L: '', Lmin: '', Lmax: '' };
+  loadErrors[i]  = { L: '', Lmin: '', Lmax: '' };
+  loadLUserSet[i] = false;   // starts in auto-populate mode (L is empty)
 
   const card = document.createElement('div');
   card.className = 'card load-card';
@@ -558,7 +635,7 @@ function addLoadCard() {
     <h2>LOAD ${i}</h2>
     <div class="load-content">
       <div class="load-row">
-        <!-- Nominal — extra right margin separates it from Min/Max group -->
+        <!-- Nominal — left side; auto-populated when L is empty and Lmin/Lmax are set -->
         <div class="load-field load-field-nominal">
           <label class="load-label" for="input-L${i}">Nominal</label>
           <div class="load-input-row">
@@ -567,22 +644,25 @@ function addLoadCard() {
             <span class="load-unit">W</span>
           </div>
         </div>
-        <div class="load-field">
-          <label class="load-label" for="input-Lmin${i}">Min</label>
-          <div class="load-input-row">
-            <input class="field-input load-input" type="number"
-                   id="input-Lmin${i}" inputmode="decimal" step="0.1">
-            <span class="load-unit">W</span>
+        <!-- Min + Max grouped and right-aligned via margin-left:auto -->
+        <div class="load-minmax-group">
+          <div class="load-field">
+            <label class="load-label" for="input-Lmin${i}">Min</label>
+            <div class="load-input-row">
+              <input class="field-input load-input" type="number"
+                     id="input-Lmin${i}" inputmode="decimal" step="0.1">
+              <span class="load-unit">W</span>
+            </div>
           </div>
-        </div>
-        <div class="load-field">
-          <label class="load-label" for="input-Lmax${i}">Max</label>
-          <div class="load-input-row">
-            <input class="field-input load-input" type="number"
-                   id="input-Lmax${i}" inputmode="decimal" step="0.1">
-            <span class="load-unit">W</span>
+          <div class="load-field">
+            <label class="load-label" for="input-Lmax${i}">Max</label>
+            <div class="load-input-row">
+              <input class="field-input load-input" type="number"
+                     id="input-Lmax${i}" inputmode="decimal" step="0.1">
+              <span class="load-unit">W</span>
+            </div>
           </div>
-        </div>
+        </div><!-- /load-minmax-group -->
       </div>
       <p class="load-error" id="load-error-${i}"></p>
     </div>
@@ -609,6 +689,7 @@ function removeLastLoadCard() {
   const card = document.getElementById(`load-card-${loadCount}`);
   if (card) loadContainer.removeChild(card);
   loadErrors.splice(loadCount, 1);
+  loadLUserSet.splice(loadCount, 1);
 
   updateLoadControls();
   updateLoadOutput();

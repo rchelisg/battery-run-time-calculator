@@ -59,25 +59,28 @@
               </div>
             </div>
 
-            <!-- Cmin: minimum cell capacity (optional) -->
-            <div class="pack-field">
-              <label class="pack-label" for="input-Cmin">Min</label>
-              <div class="pack-input-row">
-                <input class="field-input pack-input" type="number" id="input-Cmin"
-                       inputmode="numeric" step="1">
-                <span class="pack-unit">mAh</span>
-              </div>
-            </div>
+            <!-- Cmin + Cmax: grouped and right-aligned via margin-left:auto -->
+            <div class="pack-minmax-group">
 
-            <!-- Cmax: maximum cell capacity (optional) -->
-            <div class="pack-field">
-              <label class="pack-label" for="input-Cmax">Max</label>
-              <div class="pack-input-row">
-                <input class="field-input pack-input" type="number" id="input-Cmax"
-                       inputmode="numeric" step="1">
-                <span class="pack-unit">mAh</span>
+              <div class="pack-field">
+                <label class="pack-label" for="input-Cmin">Min</label>
+                <div class="pack-input-row">
+                  <input class="field-input pack-input" type="number" id="input-Cmin"
+                         inputmode="numeric" step="1">
+                  <span class="pack-unit">mAh</span>
+                </div>
               </div>
-            </div>
+
+              <div class="pack-field">
+                <label class="pack-label" for="input-Cmax">Max</label>
+                <div class="pack-input-row">
+                  <input class="field-input pack-input" type="number" id="input-Cmax"
+                         inputmode="numeric" step="1">
+                  <span class="pack-unit">mAh</span>
+                </div>
+              </div>
+
+            </div><!-- /pack-minmax-group -->
 
           </div><!-- /pack-row -->
 
