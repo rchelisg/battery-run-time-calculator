@@ -1236,19 +1236,20 @@ function fmtTime(raw) {
 // ── Build and display the REPORT TIME formatted text ──
 // Called whenever PACK or LOAD values change (T is calculated, not user-entered here).
 //
-// Column layout — 15-char prefix, values start at column 16:
-//                  Nom     Min   Max
-//   Cell Capacity: aaaa    bbbb  cccc   (mAH)
+// Column layout:
+//                  Nom     Min   Max        ← 16-space header aligns with 4-char values
+//   Cell Capacity: aaaa    bbbb  cccc   (mAH)   ← 15-char prefix + 4-char values
 //      Cell count:    d
-//                                       ← blank line 006
+//                                              ← blank line 006
 //            Load: eeee    ffff  gggg   (W)
 //              Lx: eeee    ffff  gggg   (W)   ← one per LOAD card (grey)
-//   ===> Run Time: kkkkk   lllll mmmmm  (Min) ← 5-char values, bold
+//   ===> Run Time:kkkkk   lllll mmmmm   (Min) ← 14-char prefix + 5-char values (columns align)
 //
-// Column header: 16 spaces so "Nom/Min/Max" right-align with Cap/Load 4-char columns.
-// All values: 4-char right-aligned except Run Time (5-char).
-// All colon labels: 14-char label + 1 space = 15-char prefix.
-// Title (.rpt-title) and Run Time (.rpt-runtime) are bold via <strong>; all same font size.
+// Cap/Load prefix = 15 chars (14-char label + ': ').
+// Run Time prefix = 14 chars ("===> Run Time:") — no trailing space — so 5-char T right-aligns
+//   at position 18 (same as 4-char Cap/Load Nom right edge).
+// Column right edges (0-indexed): Nom=18, Min=26, Max=32.
+// Title (.rpt-title) and Run Time (.rpt-runtime) bold via <strong>; all same font size.
 // Lx lines = .rpt-loadx (grey).
 // Blank lines: after title (002), between Cell count and Load (006), before Run Time.
 // No trailing blank line.
@@ -1304,8 +1305,9 @@ function updateReportTime() {
     loadCardLines.push(`${label}${fmtLoad(lv)}    ${fmtLoad(lminv)}  ${fmtLoad(lmaxv)}   (W)`);
   }
 
-  // Run time summary: 4-char calculated values; trailing (Min) unit
-  const runTimeLine = `===> Run Time: ${fmtTime(T)}    ${fmtTime(Tmin)}  ${fmtTime(Tmax)}   (Min)`;
+  // Run time summary: 5-char values; no space after colon so columns align with header.
+  // "===> Run Time:" = 14 chars → T right-edge at 18 (= "Nom"), Tmin at 26 (= "Min"), Tmax at 32 (= "Max")
+  const runTimeLine = `===> Run Time:${fmtTime(T)}   ${fmtTime(Tmin)} ${fmtTime(Tmax)}   (Min)`;
 
   // ── Assemble HTML ──
   // All lines same font size. Title (.rpt-title) and Run Time (.rpt-runtime) are bold

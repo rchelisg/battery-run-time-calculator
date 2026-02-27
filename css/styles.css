@@ -717,7 +717,8 @@ body {
 /* Monospace pre block — plain text, no border, auto-scrolls if somehow wider */
 .report-time-pre {
   font-family: Menlo, Monaco, Consolas, 'Courier New', monospace;
-  font-size: 0.5rem;    /* uniform size — all lines same width so columns stay aligned */
+  font-size: 0.625rem;  /* 10 px — at Chrome's minimum; zoom scales it down visually */
+  zoom: 0.75;           /* visual ~7.5 px; zoom also shrinks layout footprint (unlike transform) */
   white-space: pre;     /* preserve exact spacing */
   overflow-x: auto;     /* safety scroll if content ever exceeds card width */
   margin: 0;
