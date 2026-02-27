@@ -89,8 +89,11 @@ function tryAutoPopulatePack() {
     if (cValid) autoSet(inputCmax, 'Cmax');
     else         autoClear(inputCmax, 'Cmax');
   }
-
-  updateReportTime();   // refresh report whenever PACK capacity values change
+  // Note: updateReportTime() is NOT called here because tryAutoPopulatePack()
+  // runs during early PACK initialisation — before the TIME and LOAD const
+  // bindings are declared.  Calling updateReportTime() here would trigger a
+  // TDZ ReferenceError and halt the entire script.  Instead, each blur handler
+  // that calls tryAutoPopulatePack() explicitly calls updateReportTime() after.
 }
 
 // ── Refresh the shared error strip ──
@@ -246,10 +249,11 @@ inputN.addEventListener('blur', () => {
   updateReportTime();
 });
 
-// C — after revert-or-save, re-run auto-populate for Cmin/Cmax
+// C — after revert-or-save, re-run auto-populate for Cmin/Cmax, then refresh report
 inputC.addEventListener('blur', () => {
   blurValidate(inputC, validateC);
   tryAutoPopulatePack();
+  updateReportTime();
 });
 
 // Cmin — track ownership; revert-on-invalid on blur; re-populate if cleared
@@ -271,6 +275,7 @@ inputCmin.addEventListener('blur', () => {
     validateCmin();
   }
   tryAutoPopulatePack();   // re-seed from C if Cmin was cleared
+  updateReportTime();
 });
 
 // Cmax — track ownership; revert-on-invalid on blur; re-populate if cleared
@@ -292,6 +297,7 @@ inputCmax.addEventListener('blur', () => {
     validateCmax();
   }
   tryAutoPopulatePack();   // re-seed from C if Cmax was cleared
+  updateReportTime();
 });
 
 // Initial auto-populate — seeds Cmin/Cmax from the default C value (2000 mAh)
