@@ -102,45 +102,49 @@
 
       </div><!-- /pack-card -->
 
-      <!-- ── LOAD cards container ─────────────── -->
-      <div id="load-cards-container"></div>
+      <!-- ── LOAD group: summary + individual LOAD x cards (tight spacing) ── -->
+      <div class="load-group" id="load-group">
 
-      <!-- ── LOAD summary card (display only) ── -->
-      <!-- Shows sum of L, Lmin, Lmax across all active LOAD x cards -->
-      <div class="card load-card load-summary-card" id="load-summary-card">
-        <h2>LOAD</h2>
-        <div class="load-content">
-          <div class="load-row">
-            <!-- Nominal total -->
-            <div class="load-field load-field-nominal">
-              <label class="load-label">Nom</label>
-              <div class="load-input-row">
-                <span class="load-summary-val" id="ls-L">—</span>
-                <span class="load-unit">W</span>
-              </div>
-            </div>
-            <!-- Min + Max totals grouped right -->
-            <div class="load-minmax-group">
-              <div class="load-field">
-                <label class="load-label">Min</label>
+        <!-- LOAD summary card — display-only totals; always shown at top of group -->
+        <div class="card load-card load-summary-card" id="load-summary-card">
+          <h2>LOAD</h2>
+          <div class="load-content">
+            <div class="load-row">
+              <!-- Nominal total -->
+              <div class="load-field load-field-nominal">
+                <label class="load-label">Nom</label>
                 <div class="load-input-row">
-                  <span class="load-summary-val" id="ls-Lmin">—</span>
+                  <span class="load-summary-val" id="ls-L">—</span>
                   <span class="load-unit">W</span>
                 </div>
               </div>
-              <div class="load-field">
-                <label class="load-label">Max</label>
-                <div class="load-input-row">
-                  <span class="load-summary-val" id="ls-Lmax">—</span>
-                  <!-- No unit: right edge aligns with Lmax input boxes -->
+              <!-- Min + Max totals grouped right -->
+              <div class="load-minmax-group">
+                <div class="load-field">
+                  <label class="load-label">Min</label>
+                  <div class="load-input-row">
+                    <span class="load-summary-val" id="ls-Lmin">—</span>
+                    <span class="load-unit">W</span>
+                  </div>
                 </div>
-              </div>
-            </div><!-- /load-minmax-group -->
-          </div><!-- /load-row -->
-        </div><!-- /load-content -->
-        <!-- Spacer matches LOAD cards' +/- strip width for consistent alignment -->
-        <div class="pack-ctrl-spacer" aria-hidden="true"></div>
-      </div><!-- /load-summary-card -->
+                <div class="load-field">
+                  <label class="load-label">Max</label>
+                  <div class="load-input-row">
+                    <span class="load-summary-val" id="ls-Lmax">—</span>
+                    <span class="load-unit">W</span>
+                  </div>
+                </div>
+              </div><!-- /load-minmax-group -->
+            </div><!-- /load-row -->
+          </div><!-- /load-content -->
+          <!-- Spacer matches LOAD cards' +/- strip width for consistent alignment -->
+          <div class="pack-ctrl-spacer" aria-hidden="true"></div>
+        </div><!-- /load-summary-card -->
+
+        <!-- LOAD x cards container — dynamically added / removed -->
+        <div id="load-cards-container"></div>
+
+      </div><!-- /load-group -->
 
       <!-- ── TIME card ──────────────────────────── -->
       <!-- T = nominal run time; Tmin = minimum run time; Tmax = calculated (read-only) -->
@@ -155,7 +159,7 @@
               <div class="load-input-row">
                 <input class="field-input load-input" type="number"
                        id="input-T" inputmode="decimal" step="0.1">
-                <span class="load-unit">h</span>
+                <span class="load-unit">Min</span>
               </div>
             </div>
 
@@ -166,7 +170,7 @@
                 <div class="load-input-row">
                   <input class="field-input load-input" type="number"
                          id="input-Tmin" inputmode="decimal" step="0.1">
-                  <span class="load-unit">h</span>
+                  <span class="load-unit">Min</span>
                 </div>
               </div>
               <div class="load-field">

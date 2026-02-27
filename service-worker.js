@@ -2,7 +2,7 @@
 // Service Worker — Battery Run Time Calculator
 // Cache version: increment this with every deployment
 // ─────────────────────────────────────────────
-const CACHE_NAME = 'batt-calc-v9';
+const CACHE_NAME = 'batt-calc-v10';
 
 // All assets to pre-cache on first install
 // Use relative paths (./…) so this works on GitHub Pages subdirectories
@@ -19,7 +19,7 @@ const ASSETS_TO_CACHE = [
 // ── Install ──────────────────────────────────
 // Pre-cache all assets so the app works offline immediately
 self.addEventListener('install', event => {
-  console.log('[SW] Installing v9…');
+  console.log('[SW] Installing v10…');
   event.waitUntil(
     caches.open(CACHE_NAME).then(cache => {
       console.log('[SW] Pre-caching assets');
@@ -33,7 +33,7 @@ self.addEventListener('install', event => {
 // ── Activate ─────────────────────────────────
 // Remove any old caches from previous versions, then take control right away
 self.addEventListener('activate', event => {
-  console.log('[SW] Activating v9…');
+  console.log('[SW] Activating v10…');
   event.waitUntil(
     caches.keys().then(cacheNames => {
       return Promise.all(

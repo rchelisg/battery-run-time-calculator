@@ -397,12 +397,20 @@ body {
   margin-top: var(--spacing-md);
 }
 
+/* ── LOAD group — summary + LOAD x cards in a tightly-spaced column ── */
+/* Gap = 1/3 of the standard inter-card gap (--spacing-md = 1rem) */
+.load-group {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--spacing-md) / 3);
+}
+
 /* ── LOAD cards container ───────────────────── */
-/* Tight gap between adjacent LOAD cards — half the app-main gap */
+/* Same tight gap between adjacent LOAD x cards */
 #load-cards-container {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: calc(var(--spacing-md) / 3);
 }
 
 /* ── LOAD card — same compact layout as PACK ── */
@@ -648,20 +656,14 @@ body {
   background-color: #E8F4FD;   /* same light-blue as LOAD auto-populated */
 }
 
-/* LOAD summary card — display-only value spans styled to look like compact inputs */
+/* LOAD summary card — display-only value spans (plain text, no input-box styling) */
 .load-summary-val {
   display: inline-block;
-  width: 2.8rem;
-  min-height: 26px;
-  line-height: 22px;           /* centres single-line text inside the box */
+  width: 2.8rem;              /* same width as load-input for consistent column alignment */
   text-align: center;
   font-size: var(--font-size-base);
   color: var(--color-text);
-  background-color: #F5F5F5;  /* light grey — indicates read-only */
-  border: 1.5px solid var(--color-border);
-  border-radius: 8px;
-  padding: 0.08rem 0.2rem;
-  box-sizing: border-box;
+  font-weight: 600;           /* slightly bolder to distinguish totals from labels */
 }
 
 /* TIME card: Tmax is calculated (not user-enterable) */

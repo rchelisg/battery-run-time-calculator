@@ -295,12 +295,22 @@ tryAutoPopulatePack();
 // ─────────────────────────────────────────────
 // TIME Card — inputs and validation
 // ─────────────────────────────────────────────
+// T    = Nominal run time (user entry, 0.5 – 100 Min)
+// Tmin = Minimum run time (user entry, 0.5 – 100 Min, Tmin ≤ T)
+// Tmax = Calculated maximum run time (read-only; populated later)
+//
+// Auto-populate: whichever of T / Tmin is entered FIRST seeds the other
+// with the same value (light-blue indicator).  Once both are user-set,
+// each can be changed independently.
 
 const inputT    = document.getElementById('input-T');
 const inputTmin = document.getElementById('input-Tmin');
 const inputTmax = document.getElementById('input-Tmax');  // read-only; calculated later
 const timeErrorEl = document.getElementById('time-error');
 const timeErrors  = { T: '', Tmin: '' };
+
+// Per-field ownership: false = eligible for auto-populate from the other field
+const timeFieldUserSet = { T: false, Tmin: false };
 
 // ── Show highest-priority TIME error ──
 function showTimeError() {
@@ -324,21 +334,68 @@ function isValidTimePrecision(rawStr) {
   return /^\d+(\.\d)?$/.test(rawStr.trim());
 }
 
-// ── Validate T (Nominal run time, hours) ──
-// Rules: must be > 0 h, max 1 decimal place.
+// ── Auto-populate T ↔ Tmin ──
+// The first field the user enters seeds the other with the same value.
+// Once both are user-set, no more auto-populate.
+function tryAutoPopulateTime() {
+  const us = timeFieldUserSet;
+
+  const tRaw    = inputT.value.trim();
+  const tminRaw = inputTmin.value.trim();
+
+  // Source values: only from user-set, error-free fields
+  const tVal    = (us.T    && tRaw    !== '' && timeErrors.T    === '') ? tRaw    : null;
+  const tminVal = (us.Tmin && tminRaw !== '' && timeErrors.Tmin === '') ? tminRaw : null;
+
+  function autoSet(el, fieldKey, rawStr) {
+    el.value = rawStr;
+    el.dataset.lastValid = rawStr;
+    el.classList.add('auto-populated');
+    setTimeFieldState(el, fieldKey, '');
+  }
+
+  function autoClear(el, fieldKey) {
+    if (el.classList.contains('auto-populated')) {
+      el.value = '';
+      el.dataset.lastValid = '';
+      el.classList.remove('auto-populated');
+      setTimeFieldState(el, fieldKey, '');
+    }
+  }
+
+  // Auto-populate T from Tmin (if T not user-set)
+  if (!us.T) {
+    if (tminVal !== null) autoSet(inputT, 'T', tminVal);
+    else                  autoClear(inputT, 'T');
+  }
+
+  // Auto-populate Tmin from T (if Tmin not user-set)
+  if (!us.Tmin) {
+    if (tVal !== null) autoSet(inputTmin, 'Tmin', tVal);
+    else               autoClear(inputTmin, 'Tmin');
+  }
+}
+
+// ── Validate T (Nominal run time, Min) ──
+// Range 0.5 – 100 Min; max 1 decimal place.
 // Also re-checks Tmin because its upper bound depends on T.
 function validateT() {
   const raw = inputT.value.trim();
 
   if (raw === '') {
     setTimeFieldState(inputT, 'T', '');
-    validateTmin();            // re-check Tmin (constraint relaxes when T is cleared)
+    validateTmin();
     return true;
   }
 
   const val = Number(raw);
-  if (isNaN(val) || val <= 0) {
-    setTimeFieldState(inputT, 'T', 'Nominal must be > 0 h', true);
+  if (isNaN(val)) {
+    setTimeFieldState(inputT, 'T', 'Nominal must be a number', true);
+    validateTmin();
+    return false;
+  }
+  if (val < 0.5 || val > 100) {
+    setTimeFieldState(inputT, 'T', 'Nominal must be 0.5 – 100 Min', true);
     validateTmin();
     return false;
   }
@@ -353,8 +410,8 @@ function validateT() {
   return true;
 }
 
-// ── Validate Tmin (minimum run time, hours) ──
-// Rules: must be > 0 h, max 1 decimal place, Tmin ≤ T.
+// ── Validate Tmin (minimum run time, Min) ──
+// Range 0.5 – 100 Min; max 1 decimal place; Tmin ≤ T.
 function validateTmin() {
   const raw = inputTmin.value.trim();
 
@@ -364,8 +421,12 @@ function validateTmin() {
   }
 
   const val = Number(raw);
-  if (isNaN(val) || val <= 0) {
-    setTimeFieldState(inputTmin, 'Tmin', 'Min must be > 0 h', true);
+  if (isNaN(val)) {
+    setTimeFieldState(inputTmin, 'Tmin', 'Min must be a number', true);
+    return false;
+  }
+  if (val < 0.5 || val > 100) {
+    setTimeFieldState(inputTmin, 'Tmin', 'Min must be 0.5 – 100 Min', true);
     return false;
   }
   if (!isValidTimePrecision(raw)) {
@@ -373,12 +434,12 @@ function validateTmin() {
     return false;
   }
 
-  // Cross-check: Tmin ≤ T (only when T is present and valid)
+  // Cross-check: Tmin ≤ T (Nominal ≥ Min)
   const tRaw = inputT.value.trim();
   if (tRaw !== '') {
     const tVal = Number(tRaw);
-    if (!isNaN(tVal) && tVal > 0 && val > tVal) {
-      setTimeFieldState(inputTmin, 'Tmin', `Min must be ≤ ${tVal} h (≤ Nominal)`, true);
+    if (!isNaN(tVal) && val > tVal) {
+      setTimeFieldState(inputTmin, 'Tmin', `Min must be ≤ Nominal (${tVal})`, true);
       return false;
     }
   }
@@ -391,22 +452,46 @@ function validateTmin() {
 inputT.dataset.lastValid    = inputT.value;    // ""
 inputTmin.dataset.lastValid = inputTmin.value; // ""
 
+// T — track ownership on input; revert-on-invalid on blur; auto-populate peer
+inputT.addEventListener('input', () => {
+  if (inputT.value.trim() !== '') {
+    timeFieldUserSet.T = true;
+    inputT.classList.remove('auto-populated');
+  } else {
+    timeFieldUserSet.T = false;
+  }
+});
 inputT.addEventListener('blur', () => {
   if (validateT()) {
     inputT.dataset.lastValid = inputT.value;
+    if (inputT.value.trim() === '') timeFieldUserSet.T = false;
   } else {
     inputT.value = inputT.dataset.lastValid ?? '';
+    if (inputT.value.trim() === '') timeFieldUserSet.T = false;
     validateT();
   }
+  tryAutoPopulateTime();
 });
 
+// Tmin — track ownership on input; revert-on-invalid on blur; auto-populate peer
+inputTmin.addEventListener('input', () => {
+  if (inputTmin.value.trim() !== '') {
+    timeFieldUserSet.Tmin = true;
+    inputTmin.classList.remove('auto-populated');
+  } else {
+    timeFieldUserSet.Tmin = false;
+  }
+});
 inputTmin.addEventListener('blur', () => {
   if (validateTmin()) {
     inputTmin.dataset.lastValid = inputTmin.value;
+    if (inputTmin.value.trim() === '') timeFieldUserSet.Tmin = false;
   } else {
     inputTmin.value = inputTmin.dataset.lastValid ?? '';
+    if (inputTmin.value.trim() === '') timeFieldUserSet.Tmin = false;
     validateTmin();
   }
+  tryAutoPopulateTime();
 });
 
 // ─────────────────────────────────────────────
@@ -902,7 +987,7 @@ function addLoadCard() {
   card.className = 'card load-card';
   card.id = `load-card-${i}`;
   card.innerHTML = `
-    <h2>LOAD ${i}</h2>
+    <h2>L${i}</h2>
     <div class="load-content">
       <div class="load-row">
         <!-- Nominal — left side; auto-populated when L is empty and Lmin/Lmax are set -->
@@ -929,7 +1014,7 @@ function addLoadCard() {
             <div class="load-input-row">
               <input class="field-input load-input" type="number"
                      id="input-Lmax${i}" inputmode="decimal" step="0.1">
-              <!-- No unit label: Max right edge is flush; unit implied by Nominal/Min -->
+              <span class="load-unit">W</span>
             </div>
           </div>
         </div><!-- /load-minmax-group -->
