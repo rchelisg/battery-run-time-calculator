@@ -1302,15 +1302,6 @@ function updateReportTime() {
   wrap.innerHTML = `
     <div class="rpt-heading">Battery Run Time Calculator</div>
     <table class="rpt-table">
-      <thead>
-        <tr>
-          <th class="rpt-th-lbl"></th>
-          <th class="rpt-th-num">Nom</th>
-          <th class="rpt-th-num">Min</th>
-          <th class="rpt-th-num">Max</th>
-          <th class="rpt-th-unit"></th>
-        </tr>
-      </thead>
       <tbody>
         <tr>
           <td class="rpt-td-lbl">Cells</td>
@@ -1335,6 +1326,13 @@ function updateReportTime() {
           <td class="rpt-td-unit">W</td>
         </tr>
         ${lxRows}
+        <tr class="rpt-col-hdr">
+          <td class="rpt-td-lbl"></td>
+          <td class="rpt-td-num">Nom</td>
+          <td class="rpt-td-num">Min</td>
+          <td class="rpt-td-num">Max</td>
+          <td class="rpt-td-unit"></td>
+        </tr>
         <tr class="rpt-time-row">
           <td class="rpt-td-lbl">Run Time</td>
           <td class="rpt-td-num">${v(fmtTime(T))}</td>

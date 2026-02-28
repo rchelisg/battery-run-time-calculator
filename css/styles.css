@@ -711,6 +711,7 @@ body {
 
 .report-time-card {
   padding: 0.75rem var(--spacing-md); /* top/bottom 25% less than --spacing-md (1rem) */
+  background-color: #E8F5E9;          /* light green — matches app brand colour */
 }
 
 /* Card heading ("Battery Run Time Calculator") */
@@ -729,17 +730,7 @@ body {
   line-height: 1.55;
 }
 
-/* Column header row (Nom / Min / Max) */
-.rpt-table thead th {
-  color: var(--color-text-secondary);
-  font-weight: 600;
-  font-size: 0.6rem;
-  padding: 0 0.15rem 0.2rem;
-  white-space: nowrap;
-}
-.rpt-table .rpt-th-lbl  { text-align: right; }
-.rpt-table .rpt-th-num  { text-align: right; }
-.rpt-table .rpt-th-unit { text-align: left; }
+/* (Nom/Min/Max column header moved to tbody as .rpt-col-hdr — see below) */
 
 /* Label cells (row descriptions) */
 .rpt-table .rpt-td-lbl {
@@ -750,12 +741,12 @@ body {
   padding-right: 0.4rem;
 }
 
-/* Numeric value cells */
+/* Numeric value cells — base padding; left-padding overridden per-column below */
 .rpt-table .rpt-td-num {
   text-align: right;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
-  padding: 0 0.15rem;
+  padding: 0 0.1rem;
   min-width: 2.2rem;    /* keep columns from collapsing when value is '—' */
 }
 
@@ -765,8 +756,17 @@ body {
   color: var(--color-text-secondary);
   font-size: 0.6rem;
   white-space: nowrap;
-  padding-left: 0.25rem;
+  padding-left: 0.4rem; /* X — same gap as col3→col4 */
 }
+
+/* Column spacing via nth-child:
+   col1(label) →col2(Nom):  2X = 0.8rem
+   col2(Nom)   →col3(Min):  2X = 0.8rem
+   col3(Min)   →col4(Max):   X = 0.4rem
+   col4(Max)   →col5(unit):  X = 0.4rem  (handled by .rpt-td-unit above) */
+.rpt-table td:nth-child(2) { padding-left: 0.8rem; }  /* Nom: 2X from label  */
+.rpt-table td:nth-child(3) { padding-left: 0.8rem; }  /* Min: 2X from Nom    */
+.rpt-table td:nth-child(4) { padding-left: 0.4rem; }  /* Max: X  from Min    */
 
 /* Gap row — small breathing room between Cells and Load sections */
 .rpt-table .rpt-gap td { height: 0.3rem; }
@@ -774,11 +774,20 @@ body {
 /* Lx breakdown rows — light grey, kept at previous smaller size */
 .rpt-table .rpt-lx { color: #BDBDBD; font-size: 0.65rem; }
 
-/* Run Time row — bold result row with a subtle separator above */
-.rpt-table .rpt-time-row td {
+/* Nom/Min/Max column header row — sits in tbody above Run Time, carries the divider */
+.rpt-table .rpt-col-hdr td {
   border-top: 1px solid var(--color-border);
-  padding-top: 0.2rem;
-  padding-bottom: 0;   /* no extra space — card padding-bottom handles gap below */
+  padding-top: 0.25rem;
+  padding-bottom: 0.05rem;
+  color: var(--color-text-secondary);
+  font-size: 0.6rem;
+  font-weight: 600;
+}
+
+/* Run Time row — bold result row (divider is on .rpt-col-hdr above it) */
+.rpt-table .rpt-time-row td {
+  padding-top: 0.1rem;
+  padding-bottom: 0;
   font-size: var(--font-size-base); /* 16px — matches PACK entry field */
   font-weight: 700;
   color: var(--color-text);
