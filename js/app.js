@@ -1362,3 +1362,45 @@ addLoadCard();
 // Initial REPORT TIME render — populate with default PACK values (C=2000, N=7)
 // LOAD totals are populated by addLoadCard() above; TIME fields start empty.
 updateReportTime();
+
+// ── REPORT TIME card — tap to copy ───────────────────────────────
+// On tap/click: collects formatted plain-text from the rendered table,
+// copies to clipboard, then flashes the card bright green for 0.5 s.
+(function () {
+  const reportCard = document.querySelector('.report-time-card');
+  if (!reportCard) return;
+
+  reportCard.style.cursor = 'pointer';
+
+  reportCard.addEventListener('click', () => {
+    const wrap = document.getElementById('report-time-wrap');
+    if (!wrap) return;
+
+    // Heading line
+    const headingEl = wrap.querySelector('.rpt-heading');
+    const lines = headingEl ? [headingEl.textContent.trim()] : [];
+
+    // Table rows — format as fixed-width plain-text columns
+    wrap.querySelectorAll('.rpt-table tbody tr').forEach(row => {
+      if (row.classList.contains('rpt-gap')) {
+        lines.push('');
+        return;
+      }
+      const c    = Array.from(row.querySelectorAll('td'));
+      const lbl  = (c[0] ? c[0].textContent.trim() : '').padEnd(10);
+      const nom  = (c[1] ? c[1].textContent.trim() : '').padStart(7);
+      const min  = (c[2] ? c[2].textContent.trim() : '').padStart(7);
+      const max  = (c[3] ? c[3].textContent.trim() : '').padStart(7);
+      const unit = c[4] ? c[4].textContent.trim() : '';
+      lines.push(lbl + nom + min + max + (unit ? '  ' + unit : ''));
+    });
+
+    navigator.clipboard.writeText(lines.join('\n').trimEnd())
+      .then(() => {
+        // Flash brighter green for 0.5 s then revert to original card colour
+        reportCard.style.backgroundColor = '#66BB6A';
+        setTimeout(() => { reportCard.style.backgroundColor = ''; }, 500);
+      })
+      .catch(() => { /* clipboard unavailable — fail silently */ });
+  });
+}());

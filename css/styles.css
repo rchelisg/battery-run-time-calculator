@@ -759,6 +759,7 @@ body {
   text-align: left;
   color: var(--color-text-secondary);
   font-size: 0.6rem;
+  font-weight: 600;     /* bold so "W" is clearly uppercase at tiny size */
   white-space: nowrap;
   padding-left: 0.8rem; /* 2X — col4→col5 gap (+100% from 0.4rem) */
 }
