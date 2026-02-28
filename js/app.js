@@ -484,6 +484,8 @@ inputT.addEventListener('blur', () => {
     validateT();
   }
   tryAutoPopulateTime();
+  // SCREEN DfTime: reveal PACK + LOAD on first valid T entry
+  if (inputT.value.trim() !== '') dtRevealPackAndLoad();
 });
 
 // Tmin — track ownership on input; revert-on-invalid on blur; auto-populate peer
@@ -543,13 +545,7 @@ function switchPage(pageId) {
 // ── Reset a page to its default state ──
 // Called every time the user taps into a page.
 function resetPage(pageId) {
-  if (pageId === 'page-time') {
-    // Force all SCREEN DfTime cards visible (guards against any inline style remnants)
-    document.getElementById('dt-pack-card').style.display  = '';
-    document.getElementById('dt-load-group').style.display = '';
-    dtResetPage();
-    return;
-  }
+  if (pageId === 'page-time') { dtResetPage(); return; }
   if (pageId === 'page-cost') { dcResetPage(); return; }
   if (pageId !== 'page-calc') return;
 
@@ -2384,6 +2380,17 @@ dcAddLoadCard();
 // After first valid T entry: PACK card + LOAD group revealed.
 // ─────────────────────────────────────────────
 
+// Flag: true once PACK + LOAD have been revealed
+let dtPackLoadVisible = false;
+
+// Called from inputT blur listener when T has a valid non-empty value
+function dtRevealPackAndLoad() {
+  if (dtPackLoadVisible) return;
+  dtPackLoadVisible = true;
+  document.getElementById('dt-pack-card').style.display  = '';
+  document.getElementById('dt-load-group').style.display = '';
+}
+
 // ── DT PACK elements and state ──
 const dtInputN    = document.getElementById('dt-input-N');
 const dtInputC    = document.getElementById('dt-input-C');
@@ -2895,6 +2902,11 @@ function dtRemoveLastLoadCard() {
 // DfTime page reset — called from resetPage('page-time')
 // ─────────────────────────────────────────────
 function dtResetPage() {
+  // Re-hide PACK + LOAD; reset flag so reveal fires again on next valid T
+  dtPackLoadVisible = false;
+  document.getElementById('dt-pack-card').style.display  = 'none';
+  document.getElementById('dt-load-group').style.display = 'none';
+
   // Reset DT PACK
   dtInputN.value = '7';   dtInputN.dataset.lastValid = '7';
   setDtFieldState(dtInputN, 'N', '');
