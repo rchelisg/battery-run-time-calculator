@@ -730,7 +730,7 @@ body {
 .rpt-table {
   width: auto;          /* shrink to content width so table sits left, not stretched across card */
   border-collapse: collapse;
-  font-size: 0.75rem;   /* main rows (Cell Cap / Cells / Load / Run Time) */
+  font-size: 0.85rem;   /* Cells / Cell Cap / Load rows (+1 step from 0.75rem) */
   line-height: 1.55;
 }
 
@@ -760,23 +760,23 @@ body {
   color: var(--color-text-secondary);
   font-size: 0.6rem;
   white-space: nowrap;
-  padding-left: 0.4rem; /* X — same gap as col3→col4 */
+  padding-left: 0.8rem; /* 2X — col4→col5 gap (+100% from 0.4rem) */
 }
 
 /* Column spacing via nth-child:
-   col1(label) →col2(Nom):  4X = 1.6rem
-   col2(Nom)   →col3(Min):  4X = 1.6rem
-   col3(Min)   →col4(Max):   X = 0.4rem
-   col4(Max)   →col5(unit):  X = 0.4rem  (handled by .rpt-td-unit above) */
-.rpt-table td:nth-child(2) { padding-left: 1.6rem; }  /* Nom: 4X from label  */
-.rpt-table td:nth-child(3) { padding-left: 1.6rem; }  /* Min: 4X from Nom    */
-.rpt-table td:nth-child(4) { padding-left: 0.4rem; }  /* Max: X  from Min    */
+   col1(label) →col2(Nom):  8X = 3.2rem  (+100% from 1.6rem)
+   col2(Nom)   →col3(Min):  6X = 2.4rem  (+50%  from 1.6rem)
+   col3(Min)   →col4(Max): 1.5X = 0.6rem (+50%  from 0.4rem)
+   col4(Max)   →col5(unit): 2X = 0.8rem  (+100% from 0.4rem, handled by .rpt-td-unit above) */
+.rpt-table td:nth-child(2) { padding-left: 3.2rem; }  /* Nom: 8X from label  */
+.rpt-table td:nth-child(3) { padding-left: 2.4rem; }  /* Min: 6X from Nom    */
+.rpt-table td:nth-child(4) { padding-left: 0.6rem; }  /* Max: 1.5X from Min  */
 
 /* Gap row — small breathing room between Cells and Load sections */
 .rpt-table .rpt-gap td { height: 0.3rem; }
 
 /* Lx breakdown rows — light grey, kept at previous smaller size */
-.rpt-table .rpt-lx { color: #BDBDBD; font-size: 0.65rem; }
+.rpt-table .rpt-lx { color: #BDBDBD; font-size: 0.75rem; } /* +1 step from 0.65rem */
 
 /* Nom/Min/Max column header row — sits in tbody above Run Time, carries the divider */
 .rpt-table .rpt-col-hdr td {
