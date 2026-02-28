@@ -170,6 +170,48 @@
       <!-- ══ PAGE Time ══════════════════════════════════════════════════════ -->
       <div id="page-time" class="page page-hidden">
 
+        <!-- ── DT PACK card ──────────────────────────── -->
+        <div class="card pack-card" id="dt-pack-card">
+          <h2>PACK</h2>
+          <div class="pack-content">
+            <div class="pack-row">
+              <div class="pack-field pack-field-narrow">
+                <label class="pack-label" for="dt-input-N">Cells</label>
+                <input class="field-input pack-input" type="text" id="dt-input-N"
+                       inputmode="numeric" maxlength="1" value="7">
+              </div>
+              <div class="pack-field pack-field-nominal">
+                <label class="pack-label" for="dt-input-C">Nominal</label>
+                <div class="pack-input-row">
+                  <input class="field-input pack-input pack-input-c" type="number" id="dt-input-C"
+                         inputmode="numeric" min="100" max="8000" step="1" value="2000">
+                  <span class="pack-unit">mAh</span>
+                </div>
+              </div>
+              <div class="pack-minmax-group">
+                <div class="pack-field">
+                  <label class="pack-label" for="dt-input-Cmin">Min</label>
+                  <div class="pack-input-row">
+                    <input class="field-input pack-input pack-input-c" type="number" id="dt-input-Cmin"
+                           inputmode="numeric" step="1">
+                    <span class="pack-unit">mAh</span>
+                  </div>
+                </div>
+                <div class="pack-field">
+                  <label class="pack-label" for="dt-input-Cmax">Max</label>
+                  <div class="pack-input-row">
+                    <input class="field-input pack-input pack-input-c" type="number" id="dt-input-Cmax"
+                           inputmode="numeric" step="1">
+                    <span class="pack-unit unit-max">mAh</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <p class="pack-error" id="dt-pack-error"></p>
+          </div>
+          <div class="pack-ctrl-spacer" aria-hidden="true"></div>
+        </div><!-- /dt-pack-card -->
+
         <!-- ── TIME card ──────────────────────────── -->
         <!-- T = nominal run time; Tmin = minimum run time; Tmax = calculated (read-only) -->
         <div class="card load-card time-card" id="time-card">
@@ -217,6 +259,42 @@
             <button class="load-btn" style="visibility:hidden" disabled aria-hidden="true">+</button>
           </div>
         </div><!-- /time-card -->
+
+        <!-- ── DT LOAD group: summary + L(x) cards ── -->
+        <div class="load-group" id="dt-load-group">
+          <div class="card load-card" id="dt-load-summary-card">
+            <h2>LOAD</h2>
+            <div class="load-content">
+              <div class="load-row">
+                <div class="load-field load-field-nominal">
+                  <label class="load-label">Nominal</label>
+                  <div class="load-input-row">
+                    <span class="load-summary-val" id="dt-ls-L">—</span>
+                    <span class="load-unit">W</span>
+                  </div>
+                </div>
+                <div class="load-minmax-group">
+                  <div class="load-field">
+                    <label class="load-label">Min</label>
+                    <div class="load-input-row">
+                      <span class="load-summary-val" id="dt-ls-Lmin">—</span>
+                      <span class="load-unit">W</span>
+                    </div>
+                  </div>
+                  <div class="load-field">
+                    <label class="load-label">Max</label>
+                    <div class="load-input-row">
+                      <span class="load-summary-val" id="dt-ls-Lmax">—</span>
+                      <span class="load-unit unit-max">W</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="pack-ctrl-spacer" aria-hidden="true"></div>
+          </div><!-- /dt-load-summary-card -->
+          <div id="dt-load-cards-container"></div>
+        </div><!-- /dt-load-group -->
 
       </div><!-- /page-time -->
 
@@ -380,7 +458,7 @@
     </main>
 
     <footer class="app-footer">
-      <p><span id="footer-timestamp"></span>BRTC &copy; 2026 V1.3</p>
+      <p><span id="footer-timestamp"></span>BRTC &copy; 2026 V1.4</p>
     </footer>
 
   </div>
