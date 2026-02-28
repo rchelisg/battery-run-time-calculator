@@ -1233,34 +1233,32 @@ function fmtTime(raw) {
   return n.toFixed(1).padStart(5, ' ');
 }
 
-// ── Build and display the REPORT TIME formatted text ──
-// Called whenever PACK or LOAD values change (T is calculated, not user-entered here).
+// ── Build and display the REPORT TIME card ──
+// Called whenever PACK or LOAD values change.
 //
-// Column layout:
-//                  Nom     Min   Max        ← 16-space header aligns with 4-char values
-//   Cell Capacity: aaaa    bbbb  cccc   (mAH)   ← 15-char prefix + 4-char values
-//      Cell count:    d
-//                                              ← blank line 006
-//            Load: eeee    ffff  gggg   (W)
-//              Lx: eeee    ffff  gggg   (W)   ← one per LOAD card (grey)
-//   ===> Run Time:kkkkk   lllll mmmmm   (Min) ← 14-char prefix + 5-char values (columns align)
+// Renders an HTML table (5 columns: label | Nom | Min | Max | unit) inside
+// #report-time-wrap.  Proportional font + CSS text-align + tabular-nums
+// handle column alignment — no monospace padding needed.
 //
-// Cap/Load prefix = 15 chars (14-char label + ': ').
-// Run Time prefix = 14 chars ("===> Run Time:") — no trailing space — so 5-char T right-aligns
-//   at position 18 (same as 4-char Cap/Load Nom right edge).
-// Column right edges (0-indexed): Nom=18, Min=26, Max=32.
-// Title (.rpt-title) and Run Time (.rpt-runtime) bold via <strong>; all same font size.
-// Lx lines = .rpt-loadx (grey).
-// Blank lines: after title (002), between Cell count and Load (006), before Run Time.
-// No trailing blank line.
+// Rows:
+//   Header    [blank]   Nom  Min  Max  [blank]
+//   Cell Cap  mAh values
+//   Cells     cell count (Nom only)
+//   [gap]
+//   Load      W totals
+//   L0…Ln    per-card W breakdown  (grey)
+//   ─────────────────────────────────────────  (border-top)
+//   Run Time  Min result  (bold)
 function updateReportTime() {
-  const pre = document.getElementById('report-time-pre');
-  if (!pre) return;
+  const wrap = document.getElementById('report-time-wrap');
+  if (!wrap) return;
 
-  // Escape HTML special chars so plain text is safe inside innerHTML
+  // Escape HTML special chars for safe innerHTML insertion
   function esc(s) {
-    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   }
+  // Trim monospace padding from the fmt helpers before inserting into table cells
+  function v(raw) { return esc(raw.trim()); }
 
   // ── Gather PACK values ──
   const N    = inputN    ? inputN.value.trim()    : '';
@@ -1279,21 +1277,11 @@ function updateReportTime() {
   // ── Calculate run time from PACK + LOAD (E = N × 3.6 × C / 1000 Wh) ──
   const { T, Tmin, Tmax } = calcRunTime(N, C, Cmin, Cmax, lsL, lsLmin, lsLmax);
 
-  // Cell count: right-align single digit to 4 chars so it sits in the Nom column
-  const nFmt = (N !== '') ? String(N).padStart(4, ' ') : '   —';
+  // Cell count — plain number, no monospace padding
+  const nDisplay = (N !== '') ? esc(N) : '—';
 
-  // ── Build text lines ──
-  // All labels use 15-char prefix: 14-char label + colon + 1 space (e.g. "Cell Capacity: ")
-  // After prefix: nom(4) + "    " + min(4) + "  " + max(4) + "   " + "(unit)"
-  // Column header uses 16 spaces so "Nom/Min/Max" right-align with their columns.
-  const title    = 'Battery Run Time Calculator';
-  const hdrLine  = '                Nom     Min   Max';
-  const capLine  = `Cell Capacity: ${fmtCap(C)}    ${fmtCap(Cmin)}  ${fmtCap(Cmax)}   (mAH)`;
-  const cntLine  = `   Cell count: ${nFmt}`;
-  const loadLine = `         Load: ${fmtLoad(lsL)}    ${fmtLoad(lsLmin)}  ${fmtLoad(lsLmax)}   (W)`;
-
-  // Per-LOAD-card breakdown: one line per active card (colon label — 13-char padded + ': ')
-  const loadCardLines = [];
+  // ── Per-LOAD-card breakdown rows (one per active card, grey) ──
+  let lxRows = '';
   for (let i = 0; i < loadCount; i++) {
     const lEl    = document.getElementById(`input-L${i}`);
     const lminEl = document.getElementById(`input-Lmin${i}`);
@@ -1301,32 +1289,61 @@ function updateReportTime() {
     const lv    = lEl    ? lEl.value.trim()    : '';
     const lminv = lminEl ? lminEl.value.trim() : '';
     const lmaxv = lmaxEl ? lmaxEl.value.trim() : '';
-    const label = `L${i}`.padStart(13, ' ') + ': ';   // 15-char prefix, with colon
-    loadCardLines.push(`${label}${fmtLoad(lv)}    ${fmtLoad(lminv)}  ${fmtLoad(lmaxv)}   (W)`);
+    lxRows += `<tr>
+          <td class="rpt-td-lbl rpt-lx">L${i}</td>
+          <td class="rpt-td-num rpt-lx">${v(fmtLoad(lv))}</td>
+          <td class="rpt-td-num rpt-lx">${v(fmtLoad(lminv))}</td>
+          <td class="rpt-td-num rpt-lx">${v(fmtLoad(lmaxv))}</td>
+          <td class="rpt-td-unit rpt-lx">W</td>
+        </tr>`;
   }
 
-  // Run time summary: 5-char values; no space after colon so columns align with header.
-  // "===> Run Time:" = 14 chars → T right-edge at 18 (= "Nom"), Tmin at 26 (= "Min"), Tmax at 32 (= "Max")
-  const runTimeLine = `===> Run Time:${fmtTime(T)}   ${fmtTime(Tmin)} ${fmtTime(Tmax)}   (Min)`;
-
   // ── Assemble HTML ──
-  // All lines same font size. Title (.rpt-title) and Run Time (.rpt-runtime) are bold
-  // via <strong>. Lx lines use .rpt-loadx (light grey). Blank lines: 002, 006, before Run Time.
-  // No trailing blank line.
-  const lines = [
-    `<strong class="rpt-title">${esc(title)}</strong>`,
-    '',                                        // line 002 blank after title
-    esc(hdrLine),                              // line 003 column header
-    esc(capLine),                              // line 004 Cell Capacity
-    esc(cntLine),                              // line 005 Cell count
-    '',                                        // line 006 blank between Cell count and Load
-    esc(loadLine),                             // line 007 LOAD total
-    ...loadCardLines.map(l => `<span class="rpt-loadx">${esc(l)}</span>`),  // Lx grey
-    '',                                        // blank line before Run Time
-    `<strong class="rpt-runtime">${esc(runTimeLine)}</strong>`  // Run Time bold + larger
-  ];
-
-  pre.innerHTML = lines.join('\n');
+  wrap.innerHTML = `
+    <div class="rpt-heading">Battery Run Time Calculator</div>
+    <table class="rpt-table">
+      <thead>
+        <tr>
+          <th class="rpt-th-lbl"></th>
+          <th class="rpt-th-num">Nom</th>
+          <th class="rpt-th-num">Min</th>
+          <th class="rpt-th-num">Max</th>
+          <th class="rpt-th-unit"></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="rpt-td-lbl">Cell Cap</td>
+          <td class="rpt-td-num">${v(fmtCap(C))}</td>
+          <td class="rpt-td-num">${v(fmtCap(Cmin))}</td>
+          <td class="rpt-td-num">${v(fmtCap(Cmax))}</td>
+          <td class="rpt-td-unit">mAh</td>
+        </tr>
+        <tr>
+          <td class="rpt-td-lbl">Cells</td>
+          <td class="rpt-td-num">${nDisplay}</td>
+          <td class="rpt-td-num"></td>
+          <td class="rpt-td-num"></td>
+          <td class="rpt-td-unit"></td>
+        </tr>
+        <tr class="rpt-gap"><td colspan="5"></td></tr>
+        <tr>
+          <td class="rpt-td-lbl">Load</td>
+          <td class="rpt-td-num">${v(fmtLoad(lsL))}</td>
+          <td class="rpt-td-num">${v(fmtLoad(lsLmin))}</td>
+          <td class="rpt-td-num">${v(fmtLoad(lsLmax))}</td>
+          <td class="rpt-td-unit">W</td>
+        </tr>
+        ${lxRows}
+        <tr class="rpt-time-row">
+          <td class="rpt-td-lbl">Run Time</td>
+          <td class="rpt-td-num">${v(fmtTime(T))}</td>
+          <td class="rpt-td-num">${v(fmtTime(Tmin))}</td>
+          <td class="rpt-td-num">${v(fmtTime(Tmax))}</td>
+          <td class="rpt-td-unit">Min</td>
+        </tr>
+      </tbody>
+    </table>`;
 }
 
 // ── Footer timestamp ─────────────────────────

@@ -707,31 +707,79 @@ body {
   outline: none;
 }
 
-/* ── REPORT TIME card — monospace formatted run time report ── */
+/* ── REPORT TIME card — HTML table layout ── */
 
-/* Reduced padding lets wider mono text fit on narrow screens (≥ 375 px) */
 .report-time-card {
   padding: var(--spacing-md);
 }
 
-/* Monospace pre block — plain text, no border, auto-scrolls if somehow wider */
-.report-time-pre {
-  font-family: Menlo, Monaco, Consolas, 'Courier New', monospace;
-  font-size: 0.625rem;  /* 10 px — at Chrome's minimum; zoom scales it down visually */
-  zoom: 0.75;           /* visual ~7.5 px; zoom also shrinks layout footprint (unlike transform) */
-  white-space: pre;     /* preserve exact spacing */
-  overflow-x: auto;     /* safety scroll if content ever exceeds card width */
-  margin: 0;
-  line-height: 1.6;
+/* Card heading ("Battery Run Time Calculator") */
+.rpt-heading {
+  font-size: 0.7rem;
+  font-weight: 700;
   color: var(--color-text);
+  margin-bottom: 0.4rem;
 }
 
-/* Title (.rpt-title) and Run Time (.rpt-runtime) use <strong> for bold distinction.
-   No font-size override — uniform size across all lines keeps monospace columns aligned. */
+/* Table base — inherits card font (proportional); columns align via CSS, not monospace spaces */
+.rpt-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.65rem;   /* proportional font — visually smaller than monospace at same size */
+  line-height: 1.55;
+}
 
-/* Lx breakdown lines — light grey to distinguish from the LOAD summary total */
-.report-time-pre .rpt-loadx {
-  color: #BDBDBD;
+/* Column header row (Nom / Min / Max) */
+.rpt-table thead th {
+  color: var(--color-text-secondary);
+  font-weight: 600;
+  font-size: 0.6rem;
+  padding: 0 0.15rem 0.2rem;
+  white-space: nowrap;
+}
+.rpt-table .rpt-th-lbl  { text-align: right; }
+.rpt-table .rpt-th-num  { text-align: right; }
+.rpt-table .rpt-th-unit { text-align: left; }
+
+/* Label cells (row descriptions) */
+.rpt-table .rpt-td-lbl {
+  text-align: right;
+  color: var(--color-text-secondary);
+  font-weight: 600;
+  white-space: nowrap;
+  padding-right: 0.4rem;
+}
+
+/* Numeric value cells */
+.rpt-table .rpt-td-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  padding: 0 0.15rem;
+  min-width: 2.2rem;    /* keep columns from collapsing when value is '—' */
+}
+
+/* Unit cells (mAh / W / Min) */
+.rpt-table .rpt-td-unit {
+  text-align: left;
+  color: var(--color-text-secondary);
+  font-size: 0.6rem;
+  white-space: nowrap;
+  padding-left: 0.25rem;
+}
+
+/* Gap row — small breathing room between Cells and Load sections */
+.rpt-table .rpt-gap td { height: 0.3rem; }
+
+/* Lx breakdown rows — light grey to distinguish from LOAD total */
+.rpt-table .rpt-lx { color: #BDBDBD; }
+
+/* Run Time row — bold result row with a subtle separator above */
+.rpt-table .rpt-time-row td {
+  border-top: 1px solid var(--color-border);
+  padding-top: 0.2rem;
+  font-weight: 700;
+  color: var(--color-text);
 }
 
 /* ── L(x) card — extra compactness overrides for dynamically created LOAD cards ── */
