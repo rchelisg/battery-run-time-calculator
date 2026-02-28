@@ -1313,18 +1313,18 @@ function updateReportTime() {
       </thead>
       <tbody>
         <tr>
-          <td class="rpt-td-lbl">Cell Cap</td>
-          <td class="rpt-td-num">${v(fmtCap(C))}</td>
-          <td class="rpt-td-num">${v(fmtCap(Cmin))}</td>
-          <td class="rpt-td-num">${v(fmtCap(Cmax))}</td>
-          <td class="rpt-td-unit">mAh</td>
-        </tr>
-        <tr>
           <td class="rpt-td-lbl">Cells</td>
           <td class="rpt-td-num">${nDisplay}</td>
           <td class="rpt-td-num"></td>
           <td class="rpt-td-num"></td>
           <td class="rpt-td-unit"></td>
+        </tr>
+        <tr>
+          <td class="rpt-td-lbl">Cell Cap</td>
+          <td class="rpt-td-num">${v(fmtCap(C))}</td>
+          <td class="rpt-td-num">${v(fmtCap(Cmin))}</td>
+          <td class="rpt-td-num">${v(fmtCap(Cmax))}</td>
+          <td class="rpt-td-unit">mAh</td>
         </tr>
         <tr class="rpt-gap"><td colspan="5"></td></tr>
         <tr>
