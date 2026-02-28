@@ -754,12 +754,15 @@ body {
   min-width: 2.2rem;    /* keep columns from collapsing when value is '—' */
 }
 
-/* Unit cells (mAh / W / Min) */
+/* Unit cells (mAh / W / Min) — inherits font-size from the row's dominant rule:
+   Cell Cap / Load rows → 0.85rem (table base)
+   L(x) rows           → 0.75rem (.rpt-lx overrides, same specificity, later in file)
+   Run Time row        → 16px   (.rpt-time-row td, higher specificity)
+   col-hdr row         → 0.6rem (.rpt-col-hdr td, higher specificity) */
 .rpt-table .rpt-td-unit {
   text-align: left;
   color: var(--color-text-secondary);
-  font-size: 0.6rem;
-  font-weight: 600;     /* bold so "W" is clearly uppercase at tiny size */
+  font-weight: 600;     /* bold so "W" is clearly uppercase */
   white-space: nowrap;
   padding-left: 0.8rem; /* 2X — col4→col5 gap (+100% from 0.4rem) */
 }
