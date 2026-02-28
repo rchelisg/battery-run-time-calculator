@@ -417,6 +417,18 @@ body {
   margin-top: var(--spacing-md);
 }
 
+/* Extra top margin on DC REPORT TIME card (Mode B) within PAGE Cost */
+#dc-report-time-card {
+  margin-top: var(--spacing-md);
+}
+
+/* ── DC REPORT LOAD card (Mode A: TIME first → compute Load) ── */
+.dc-report-load-card {
+  position: relative;                 /* anchor for the absolute-positioned copy button */
+  padding: 0.75rem var(--spacing-md);
+  background-color: #E3F2FD;          /* light blue — contrasts with REPORT TIME's green */
+}
+
 /* ── Footer ─────────────────────────────────── */
 .app-footer {
   text-align: center;

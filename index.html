@@ -221,8 +221,155 @@
       </div><!-- /page-time -->
 
       <!-- ══ PAGE Cost ══════════════════════════════════════════════════════ -->
+      <!-- PACK + TIME + LOAD/L(x) shown initially; mode locked on first entry  -->
+      <!-- Mode A (TIME first → E,T→L): compute system load                     -->
+      <!-- Mode B (LOAD first → E,L→T): compute run time                        -->
       <div id="page-cost" class="page page-hidden">
-        <!-- content coming soon -->
+
+        <!-- ── DC PACK card ──────────────────────────── -->
+        <div class="card pack-card" id="dc-pack-card">
+          <h2>PACK</h2>
+          <div class="pack-content">
+            <div class="pack-row">
+              <div class="pack-field pack-field-narrow">
+                <label class="pack-label" for="dc-input-N">Cells</label>
+                <input class="field-input pack-input" type="text" id="dc-input-N"
+                       inputmode="numeric" maxlength="1" value="7">
+              </div>
+              <div class="pack-field pack-field-nominal">
+                <label class="pack-label" for="dc-input-C">Nominal</label>
+                <div class="pack-input-row">
+                  <input class="field-input pack-input pack-input-c" type="number" id="dc-input-C"
+                         inputmode="numeric" min="100" max="8000" step="1" value="2000">
+                  <span class="pack-unit">mAh</span>
+                </div>
+              </div>
+              <div class="pack-minmax-group">
+                <div class="pack-field">
+                  <label class="pack-label" for="dc-input-Cmin">Min</label>
+                  <div class="pack-input-row">
+                    <input class="field-input pack-input pack-input-c" type="number" id="dc-input-Cmin"
+                           inputmode="numeric" step="1">
+                    <span class="pack-unit">mAh</span>
+                  </div>
+                </div>
+                <div class="pack-field">
+                  <label class="pack-label" for="dc-input-Cmax">Max</label>
+                  <div class="pack-input-row">
+                    <input class="field-input pack-input pack-input-c" type="number" id="dc-input-Cmax"
+                           inputmode="numeric" step="1">
+                    <span class="pack-unit unit-max">mAh</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <p class="pack-error" id="dc-pack-error"></p>
+          </div>
+          <div class="pack-ctrl-spacer" aria-hidden="true"></div>
+        </div><!-- /dc-pack-card -->
+
+        <!-- ── DC TIME card — all fields editable; first entry triggers Mode A ── -->
+        <div class="card load-card time-card" id="dc-time-card">
+          <h2>TIME</h2>
+          <div class="load-content">
+            <div class="load-row">
+              <div class="load-field load-field-nominal">
+                <label class="load-label" for="dc-input-T">Nominal</label>
+                <div class="load-input-row">
+                  <input class="field-input load-input" type="number"
+                         id="dc-input-T" inputmode="decimal" step="0.1">
+                  <span class="load-unit">Min</span>
+                </div>
+              </div>
+              <div class="load-minmax-group">
+                <div class="load-field">
+                  <label class="load-label" for="dc-input-Tmin">Min</label>
+                  <div class="load-input-row">
+                    <input class="field-input load-input" type="number"
+                           id="dc-input-Tmin" inputmode="decimal" step="0.1">
+                    <span class="load-unit">Min</span>
+                  </div>
+                </div>
+                <div class="load-field">
+                  <label class="load-label" for="dc-input-Tmax">Max</label>
+                  <div class="load-input-row">
+                    <input class="field-input load-input" type="number"
+                           id="dc-input-Tmax" inputmode="decimal" step="0.1">
+                    <span class="load-unit unit-max">Min</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <p class="load-error" id="dc-time-error"></p>
+          </div>
+          <div class="load-controls" aria-hidden="true">
+            <button class="load-btn" style="visibility:hidden" tabindex="-1">−</button>
+            <button class="load-btn" style="visibility:hidden" tabindex="-1">+</button>
+          </div>
+        </div><!-- /dc-time-card -->
+
+        <!-- ── DC LOAD group: summary + L(x) cards; first entry triggers Mode B ── -->
+        <div class="load-group" id="dc-load-group">
+          <div class="card load-card" id="dc-load-summary-card">
+            <h2>LOAD</h2>
+            <div class="load-content">
+              <div class="load-row">
+                <div class="load-field load-field-nominal">
+                  <label class="load-label">Nominal</label>
+                  <div class="load-input-row">
+                    <span class="load-summary-val" id="dc-ls-L">—</span>
+                    <span class="load-unit">W</span>
+                  </div>
+                </div>
+                <div class="load-minmax-group">
+                  <div class="load-field">
+                    <label class="load-label">Min</label>
+                    <div class="load-input-row">
+                      <span class="load-summary-val" id="dc-ls-Lmin">—</span>
+                      <span class="load-unit">W</span>
+                    </div>
+                  </div>
+                  <div class="load-field">
+                    <label class="load-label">Max</label>
+                    <div class="load-input-row">
+                      <span class="load-summary-val" id="dc-ls-Lmax">—</span>
+                      <span class="load-unit unit-max">W</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="pack-ctrl-spacer" aria-hidden="true"></div>
+          </div><!-- /dc-load-summary-card -->
+          <div id="dc-load-cards-container"></div>
+        </div><!-- /dc-load-group -->
+
+        <!-- ── DC REPORT LOAD card (Mode A: TIME first → compute Load) ── -->
+        <div class="card dc-report-load-card" id="dc-report-load-card" style="display:none">
+          <button id="dc-rpt-load-copy-btn" class="rpt-copy-btn" aria-label="Copy report to clipboard" title="Copy to clipboard">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                 fill="none" stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="9" y="2" width="6" height="4" rx="1"/>
+              <path d="M8 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2h-2"/>
+            </svg>
+          </button>
+          <div id="dc-report-load-wrap" aria-live="polite" aria-label="System load report"></div>
+        </div><!-- /dc-report-load-card -->
+
+        <!-- ── DC REPORT TIME card (Mode B: LOAD first → compute Run Time) ── -->
+        <div class="card report-time-card" id="dc-report-time-card" style="display:none">
+          <button id="dc-rpt-time-copy-btn" class="rpt-copy-btn" aria-label="Copy report to clipboard" title="Copy to clipboard">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                 fill="none" stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="9" y="2" width="6" height="4" rx="1"/>
+              <path d="M8 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2h-2"/>
+            </svg>
+          </button>
+          <div id="dc-report-time-wrap" aria-live="polite" aria-label="Run time report"></div>
+        </div><!-- /dc-report-time-card -->
+
       </div><!-- /page-cost -->
 
       <!-- ══ PAGE Load ══════════════════════════════════════════════════════ -->
@@ -233,7 +380,7 @@
     </main>
 
     <footer class="app-footer">
-      <p><span id="footer-timestamp"></span>BRTC &copy; 2026 V1.2</p>
+      <p><span id="footer-timestamp"></span>BRTC &copy; 2026 V1.3</p>
     </footer>
 
   </div>

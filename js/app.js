@@ -542,8 +542,8 @@ function switchPage(pageId) {
 
 // ── Reset a page to its default state ──
 // Called every time the user taps into a page.
-// Only PAGE Calc has content yet; others are no-ops.
 function resetPage(pageId) {
+  if (pageId === 'page-cost') { dcResetPage(); return; }
   if (pageId !== 'page-calc') return;
 
   // ── PACK: restore defaults (N = 7, C = 2000; Cmin/Cmax cleared for auto-seed) ──
@@ -1403,3 +1403,970 @@ updateReportTime();
       .catch(() => { /* clipboard unavailable — fail silently */ });
   });
 }());
+
+// ─────────────────────────────────────────────
+// DfCost page — dc-prefixed IDs; independent state
+// Mode A (TIME first → E,T→L): compute system load
+// Mode B (LOAD first → E,L→T): compute run time
+// ─────────────────────────────────────────────
+
+// ── DC Mode state ──
+let dcMode = null;  // null | 'time' | 'load'
+
+// ── DC PACK elements and state ──
+const dcInputN    = document.getElementById('dc-input-N');
+const dcInputC    = document.getElementById('dc-input-C');
+const dcInputCmin = document.getElementById('dc-input-Cmin');
+const dcInputCmax = document.getElementById('dc-input-Cmax');
+const dcPackErrorEl = document.getElementById('dc-pack-error');
+const dcPackErrors = { N: '', C: '', Cmin: '', Cmax: '' };
+const dcPackFieldUserSet = { Cmin: false, Cmax: false };
+
+function showDcPackError() {
+  dcPackErrorEl.textContent =
+    dcPackErrors.N || dcPackErrors.C || dcPackErrors.Cmin || dcPackErrors.Cmax || '';
+}
+
+function setDcFieldState(inputEl, fieldKey, message, isError = false) {
+  if (isError) {
+    inputEl.classList.add('input-error');
+    dcPackErrors[fieldKey] = message;
+  } else {
+    inputEl.classList.remove('input-error');
+    dcPackErrors[fieldKey] = '';
+  }
+  showDcPackError();
+}
+
+function tryAutoPopulateDcPack() {
+  const cRaw   = dcInputC.value.trim();
+  const cValid = cRaw !== '' && dcPackErrors.C === '';
+
+  function autoSet(el, fieldKey) {
+    el.value = cRaw;
+    el.dataset.lastValid = cRaw;
+    el.classList.add('auto-populated');
+    setDcFieldState(el, fieldKey, '');
+  }
+
+  function autoClear(el, fieldKey) {
+    if (el.classList.contains('auto-populated')) {
+      el.value = '';
+      el.dataset.lastValid = '';
+      el.classList.remove('auto-populated');
+      setDcFieldState(el, fieldKey, '');
+    }
+  }
+
+  if (!dcPackFieldUserSet.Cmin) {
+    if (cValid) autoSet(dcInputCmin, 'Cmin');
+    else        autoClear(dcInputCmin, 'Cmin');
+  }
+  if (!dcPackFieldUserSet.Cmax) {
+    if (cValid) autoSet(dcInputCmax, 'Cmax');
+    else        autoClear(dcInputCmax, 'Cmax');
+  }
+}
+
+function validateDcN() {
+  const raw = dcInputN.value.trim();
+  if (raw === '') { setDcFieldState(dcInputN, 'N', ''); return true; }
+  const val = Number(raw);
+  if (!Number.isInteger(val)) {
+    setDcFieldState(dcInputN, 'N', 'Cells must be a whole number', true); return false;
+  }
+  if (val < 1 || val > 8) {
+    setDcFieldState(dcInputN, 'N', 'Cells must be 1 – 8', true); return false;
+  }
+  setDcFieldState(dcInputN, 'N', '');
+  return true;
+}
+
+function validateDcC() {
+  const raw = dcInputC.value.trim();
+  if (raw === '') {
+    setDcFieldState(dcInputC, 'C', '');
+    validateDcCmin(); validateDcCmax();
+    return true;
+  }
+  const val = Number(raw);
+  if (isNaN(val) || !Number.isInteger(val)) {
+    setDcFieldState(dcInputC, 'C', 'Nominal must be a whole number', true);
+    validateDcCmin(); validateDcCmax();
+    return false;
+  }
+  if (val < 100 || val > 8000) {
+    setDcFieldState(dcInputC, 'C', 'Nominal must be 100 – 8000 mAh', true);
+    validateDcCmin(); validateDcCmax();
+    return false;
+  }
+  setDcFieldState(dcInputC, 'C', '');
+  validateDcCmin(); validateDcCmax();
+  return true;
+}
+
+function validateDcCmin() {
+  const raw = dcInputCmin.value.trim();
+  if (raw === '') { setDcFieldState(dcInputCmin, 'Cmin', ''); return true; }
+  const val = Number(raw);
+  if (isNaN(val) || !Number.isInteger(val)) {
+    setDcFieldState(dcInputCmin, 'Cmin', 'Min must be a whole number', true); return false;
+  }
+  const cRaw = dcInputC.value.trim();
+  if (cRaw !== '') {
+    const cVal = Number(cRaw);
+    if (Number.isInteger(cVal) && cVal >= 100 && cVal <= 8000) {
+      const cminFloor = Math.ceil(cVal * 0.5);
+      if (val < cminFloor) {
+        setDcFieldState(dcInputCmin, 'Cmin', `Min must be ≥ ${cminFloor} mAh`, true); return false;
+      }
+      if (val > cVal) {
+        setDcFieldState(dcInputCmin, 'Cmin', `Min must be ≤ ${cVal} mAh (≤ Nominal)`, true); return false;
+      }
+    }
+  }
+  setDcFieldState(dcInputCmin, 'Cmin', '');
+  return true;
+}
+
+function validateDcCmax() {
+  const raw = dcInputCmax.value.trim();
+  if (raw === '') { setDcFieldState(dcInputCmax, 'Cmax', ''); return true; }
+  const val = Number(raw);
+  if (isNaN(val) || !Number.isInteger(val)) {
+    setDcFieldState(dcInputCmax, 'Cmax', 'Max must be a whole number', true); return false;
+  }
+  const cRaw = dcInputC.value.trim();
+  if (cRaw !== '') {
+    const cVal = Number(cRaw);
+    if (Number.isInteger(cVal) && cVal >= 100 && cVal <= 8000) {
+      const cmaxCeil = Math.floor(cVal * 1.15);
+      if (val > cmaxCeil) {
+        setDcFieldState(dcInputCmax, 'Cmax', `Max must be ≤ ${cmaxCeil} mAh`, true); return false;
+      }
+      if (val < cVal) {
+        setDcFieldState(dcInputCmax, 'Cmax', `Max must be ≥ ${cVal} mAh (≥ Nominal)`, true); return false;
+      }
+    }
+  }
+  setDcFieldState(dcInputCmax, 'Cmax', '');
+  return true;
+}
+
+// Seed lastValid from defaults
+dcInputN.dataset.lastValid    = dcInputN.value;
+dcInputC.dataset.lastValid    = dcInputC.value;
+dcInputCmin.dataset.lastValid = dcInputCmin.value;
+dcInputCmax.dataset.lastValid = dcInputCmax.value;
+
+dcInputN.addEventListener('blur', () => {
+  blurValidate(dcInputN, validateDcN);
+  dcUpdateOutput();
+});
+
+dcInputC.addEventListener('blur', () => {
+  blurValidate(dcInputC, validateDcC);
+  tryAutoPopulateDcPack();
+  dcUpdateOutput();
+});
+
+dcInputCmin.addEventListener('input', () => {
+  if (dcInputCmin.value.trim() !== '') {
+    dcPackFieldUserSet.Cmin = true;
+    dcInputCmin.classList.remove('auto-populated');
+  } else {
+    dcPackFieldUserSet.Cmin = false;
+  }
+});
+dcInputCmin.addEventListener('blur', () => {
+  if (validateDcCmin()) {
+    dcInputCmin.dataset.lastValid = dcInputCmin.value;
+    if (dcInputCmin.value.trim() === '') dcPackFieldUserSet.Cmin = false;
+  } else {
+    dcInputCmin.value = dcInputCmin.dataset.lastValid ?? '';
+    if (dcInputCmin.value.trim() === '') dcPackFieldUserSet.Cmin = false;
+    validateDcCmin();
+  }
+  tryAutoPopulateDcPack();
+  dcUpdateOutput();
+});
+
+dcInputCmax.addEventListener('input', () => {
+  if (dcInputCmax.value.trim() !== '') {
+    dcPackFieldUserSet.Cmax = true;
+    dcInputCmax.classList.remove('auto-populated');
+  } else {
+    dcPackFieldUserSet.Cmax = false;
+  }
+});
+dcInputCmax.addEventListener('blur', () => {
+  if (validateDcCmax()) {
+    dcInputCmax.dataset.lastValid = dcInputCmax.value;
+    if (dcInputCmax.value.trim() === '') dcPackFieldUserSet.Cmax = false;
+  } else {
+    dcInputCmax.value = dcInputCmax.dataset.lastValid ?? '';
+    if (dcInputCmax.value.trim() === '') dcPackFieldUserSet.Cmax = false;
+    validateDcCmax();
+  }
+  tryAutoPopulateDcPack();
+  dcUpdateOutput();
+});
+
+// Initial auto-populate — seeds Cmin/Cmax from the default C value (2000 mAh)
+tryAutoPopulateDcPack();
+
+// ─────────────────────────────────────────────
+// DC TIME — inputs and validation
+// T/Tmin/Tmax are all user-editable (no auto-populate between fields).
+// First valid blur → Mode A (TIME entered first).
+// ─────────────────────────────────────────────
+
+const dcInputT    = document.getElementById('dc-input-T');
+const dcInputTmin = document.getElementById('dc-input-Tmin');
+const dcInputTmax = document.getElementById('dc-input-Tmax');
+const dcTimeErrorEl = document.getElementById('dc-time-error');
+const dcTimeErrors  = { T: '', Tmin: '', Tmax: '' };
+
+function showDcTimeError() {
+  dcTimeErrorEl.textContent = dcTimeErrors.T || dcTimeErrors.Tmin || dcTimeErrors.Tmax || '';
+}
+
+function setDcTimeFieldState(inputEl, fieldKey, message, isError = false) {
+  if (isError) {
+    inputEl.classList.add('input-error');
+    dcTimeErrors[fieldKey] = message;
+  } else {
+    inputEl.classList.remove('input-error');
+    dcTimeErrors[fieldKey] = '';
+  }
+  showDcTimeError();
+}
+
+function validateDcT() {
+  const raw = dcInputT.value.trim();
+  if (raw === '') {
+    setDcTimeFieldState(dcInputT, 'T', '');
+    validateDcTmin(); validateDcTmax();
+    return true;
+  }
+  const val = Number(raw);
+  if (isNaN(val)) { setDcTimeFieldState(dcInputT, 'T', 'Nominal must be a number', true); return false; }
+  if (val < 0.5 || val > 100) { setDcTimeFieldState(dcInputT, 'T', 'Nominal must be 0.5 – 100 Min', true); return false; }
+  if (!isValidTimePrecision(raw)) { setDcTimeFieldState(dcInputT, 'T', 'Max 1 decimal place', true); return false; }
+  setDcTimeFieldState(dcInputT, 'T', '');
+  validateDcTmin(); validateDcTmax();
+  return true;
+}
+
+function validateDcTmin() {
+  const raw = dcInputTmin.value.trim();
+  if (raw === '') { setDcTimeFieldState(dcInputTmin, 'Tmin', ''); return true; }
+  const val = Number(raw);
+  if (isNaN(val)) { setDcTimeFieldState(dcInputTmin, 'Tmin', 'Min must be a number', true); return false; }
+  if (val < 0.5 || val > 100) { setDcTimeFieldState(dcInputTmin, 'Tmin', 'Min must be 0.5 – 100 Min', true); return false; }
+  if (!isValidTimePrecision(raw)) { setDcTimeFieldState(dcInputTmin, 'Tmin', 'Max 1 decimal place', true); return false; }
+  const tRaw = dcInputT.value.trim();
+  if (tRaw !== '') {
+    const tVal = Number(tRaw);
+    if (!isNaN(tVal) && val > tVal) {
+      setDcTimeFieldState(dcInputTmin, 'Tmin', `Min must be ≤ Nominal (${tVal})`, true); return false;
+    }
+  }
+  setDcTimeFieldState(dcInputTmin, 'Tmin', '');
+  return true;
+}
+
+function validateDcTmax() {
+  const raw = dcInputTmax.value.trim();
+  if (raw === '') { setDcTimeFieldState(dcInputTmax, 'Tmax', ''); return true; }
+  const val = Number(raw);
+  if (isNaN(val)) { setDcTimeFieldState(dcInputTmax, 'Tmax', 'Max must be a number', true); return false; }
+  if (val < 0.5 || val > 100) { setDcTimeFieldState(dcInputTmax, 'Tmax', 'Max must be 0.5 – 100 Min', true); return false; }
+  if (!isValidTimePrecision(raw)) { setDcTimeFieldState(dcInputTmax, 'Tmax', 'Max 1 decimal place', true); return false; }
+  const tRaw = dcInputT.value.trim();
+  if (tRaw !== '') {
+    const tVal = Number(tRaw);
+    if (!isNaN(tVal) && val < tVal) {
+      setDcTimeFieldState(dcInputTmax, 'Tmax', `Max must be ≥ Nominal (${tVal})`, true); return false;
+    }
+  }
+  setDcTimeFieldState(dcInputTmax, 'Tmax', '');
+  return true;
+}
+
+dcInputT.dataset.lastValid    = '';
+dcInputTmin.dataset.lastValid = '';
+dcInputTmax.dataset.lastValid = '';
+
+// Helper: blur handler for all three DC TIME fields
+// Reverts on invalid, then detects mode on first valid entry.
+function dcBlurTimeField(el, validateFn) {
+  if (validateFn()) {
+    el.dataset.lastValid = el.value;
+  } else {
+    el.value = el.dataset.lastValid ?? '';
+    validateFn();
+  }
+  if (dcMode === null && el.value.trim() !== '') dcSetMode('time');
+  dcUpdateOutput();
+}
+
+dcInputT.addEventListener('blur',    () => dcBlurTimeField(dcInputT,    validateDcT));
+dcInputTmin.addEventListener('blur', () => dcBlurTimeField(dcInputTmin, validateDcTmin));
+dcInputTmax.addEventListener('blur', () => dcBlurTimeField(dcInputTmax, validateDcTmax));
+
+// ─────────────────────────────────────────────
+// DC LOAD Cards — dynamic management and validation
+// ─────────────────────────────────────────────
+
+const DC_LOAD_MAX = 5;
+let dcLoadCount = 0;
+const dcLoadErrors       = [];
+const dcLoadFieldUserSet = [];
+const dcLoadContainer    = document.getElementById('dc-load-cards-container');
+
+function showDcLoadError(i) {
+  const el = document.getElementById(`dc-load-error-${i}`);
+  if (el && dcLoadErrors[i]) {
+    el.textContent = dcLoadErrors[i].L || dcLoadErrors[i].Lmin || dcLoadErrors[i].Lmax || '';
+  }
+}
+
+function setDcLoadFieldState(i, inputEl, fieldKey, message, isError = false) {
+  if (isError) {
+    inputEl.classList.add('input-error');
+    dcLoadErrors[i][fieldKey] = message;
+  } else {
+    inputEl.classList.remove('input-error');
+    dcLoadErrors[i][fieldKey] = '';
+  }
+  showDcLoadError(i);
+}
+
+function validateDcL(i) {
+  const el = document.getElementById(`dc-input-L${i}`);
+  if (!el) return true;
+  const raw = el.value.trim();
+  if (raw === '') { setDcLoadFieldState(i, el, 'L', ''); return true; }
+  const val = parseFloat(raw);
+  if (isNaN(val) || val <= 0) {
+    setDcLoadFieldState(i, el, 'L', 'Load must be a positive number', true); return false;
+  }
+  if (!isValidLoadPrecision(raw, val)) {
+    setDcLoadFieldState(i, el, 'L', val > 20 ? 'Whole numbers only above 20 W' : 'Max 1 decimal place', true); return false;
+  }
+  setDcLoadFieldState(i, el, 'L', '');
+  return true;
+}
+
+function validateDcLmin(i) {
+  const el = document.getElementById(`dc-input-Lmin${i}`);
+  if (!el) return true;
+  const raw = el.value.trim();
+  if (raw === '') { setDcLoadFieldState(i, el, 'Lmin', ''); return true; }
+  const val = parseFloat(raw);
+  if (isNaN(val) || val <= 0) {
+    setDcLoadFieldState(i, el, 'Lmin', 'Min must be a positive number', true); return false;
+  }
+  if (!isValidLoadPrecision(raw, val)) {
+    setDcLoadFieldState(i, el, 'Lmin', val > 20 ? 'Whole numbers only above 20 W' : 'Max 1 decimal place', true); return false;
+  }
+  const lEl  = document.getElementById(`dc-input-L${i}`);
+  const lRaw = lEl ? lEl.value.trim() : '';
+  if (lRaw !== '') {
+    const lVal = parseFloat(lRaw);
+    if (!isNaN(lVal) && val > lVal) {
+      setDcLoadFieldState(i, el, 'Lmin', `Min must be ≤ Nominal (${lVal})`, true); return false;
+    }
+  }
+  setDcLoadFieldState(i, el, 'Lmin', '');
+  return true;
+}
+
+function validateDcLmax(i) {
+  const el = document.getElementById(`dc-input-Lmax${i}`);
+  if (!el) return true;
+  const raw = el.value.trim();
+  if (raw === '') { setDcLoadFieldState(i, el, 'Lmax', ''); return true; }
+  const val = parseFloat(raw);
+  if (isNaN(val) || val <= 0) {
+    setDcLoadFieldState(i, el, 'Lmax', 'Max must be a positive number', true); return false;
+  }
+  if (!isValidLoadPrecision(raw, val)) {
+    setDcLoadFieldState(i, el, 'Lmax', val > 20 ? 'Whole numbers only above 20 W' : 'Max 1 decimal place', true); return false;
+  }
+  const lEl  = document.getElementById(`dc-input-L${i}`);
+  const lRaw = lEl ? lEl.value.trim() : '';
+  if (lRaw !== '') {
+    const lVal = parseFloat(lRaw);
+    if (!isNaN(lVal) && val < lVal) {
+      setDcLoadFieldState(i, el, 'Lmax', `Max must be ≥ Nominal (${lVal})`, true); return false;
+    }
+  }
+  setDcLoadFieldState(i, el, 'Lmax', '');
+  return true;
+}
+
+function dcTryAutoPopulateAll(i) {
+  const us     = dcLoadFieldUserSet[i];
+  const lEl    = document.getElementById(`dc-input-L${i}`);
+  const lminEl = document.getElementById(`dc-input-Lmin${i}`);
+  const lmaxEl = document.getElementById(`dc-input-Lmax${i}`);
+  if (!lEl || !lminEl || !lmaxEl) return;
+
+  const lVal    = (us.L    && lEl.value.trim()    !== '' && dcLoadErrors[i].L    === '')
+                  ? parseFloat(lEl.value.trim())    : null;
+  const lminVal = (us.Lmin && lminEl.value.trim() !== '' && dcLoadErrors[i].Lmin === '')
+                  ? parseFloat(lminEl.value.trim()) : null;
+  const lmaxVal = (us.Lmax && lmaxEl.value.trim() !== '' && dcLoadErrors[i].Lmax === '')
+                  ? parseFloat(lmaxEl.value.trim()) : null;
+
+  function fmtL(v) {
+    if (v > 20) return String(Math.round(v));
+    const r = Math.round(v * 10) / 10;
+    return Number.isInteger(r) ? String(r) : r.toFixed(1);
+  }
+
+  function autoSet(el, fieldKey, val) {
+    const fmt = fmtL(val);
+    el.value = fmt;
+    el.dataset.lastValid = fmt;
+    el.classList.add('auto-populated');
+    setDcLoadFieldState(i, el, fieldKey, '');
+  }
+
+  function autoClear(el, fieldKey) {
+    if (el.classList.contains('auto-populated')) {
+      el.value = '';
+      el.dataset.lastValid = '';
+      el.classList.remove('auto-populated');
+      setDcLoadFieldState(i, el, fieldKey, '');
+    }
+  }
+
+  if (!us.L) {
+    if      (lminVal !== null && lmaxVal !== null) autoSet(lEl, 'L', (lminVal + lmaxVal) / 2);
+    else if (lminVal !== null)                     autoSet(lEl, 'L', lminVal);
+    else if (lmaxVal !== null)                     autoSet(lEl, 'L', lmaxVal);
+    else                                           autoClear(lEl, 'L');
+  }
+  if (!us.Lmin) {
+    if      (lVal    !== null) autoSet(lminEl, 'Lmin', lVal);
+    else if (lmaxVal !== null) autoSet(lminEl, 'Lmin', lmaxVal);
+    else                       autoClear(lminEl, 'Lmin');
+  }
+  if (!us.Lmax) {
+    if      (lVal    !== null) autoSet(lmaxEl, 'Lmax', lVal);
+    else if (lminVal !== null) autoSet(lmaxEl, 'Lmax', lminVal);
+    else                       autoClear(lmaxEl, 'Lmax');
+  }
+}
+
+function dcUpdateLoadControls() {
+  for (let i = 0; i < DC_LOAD_MAX; i++) {
+    const minBtn = document.getElementById(`dc-load-minus-${i}`);
+    const plusBtn = document.getElementById(`dc-load-plus-${i}`);
+    if (!minBtn || !plusBtn) continue;
+    const isLast = (i === dcLoadCount - 1);
+    minBtn.style.visibility  = (isLast && dcLoadCount > 1)          ? '' : 'hidden';
+    plusBtn.style.visibility = (isLast && dcLoadCount < DC_LOAD_MAX) ? '' : 'hidden';
+  }
+}
+
+function dcUpdateDcTotalRow() {
+  ['L', 'Lmin', 'Lmax'].forEach(field => {
+    let sum = 0, hasAny = false;
+    for (let i = 0; i < dcLoadCount; i++) {
+      const el  = document.getElementById(`dc-input-${field}${i}`);
+      if (!el) continue;
+      const raw = el.value.trim();
+      if (raw === '') continue;
+      const val = parseFloat(raw);
+      if (isNaN(val)) continue;
+      sum += val;
+      hasAny = true;
+    }
+    const summaryEl = document.getElementById(`dc-ls-${field}`);
+    if (!summaryEl) return;
+    if (hasAny) {
+      const rounded = Math.round(sum * 10) / 10;
+      summaryEl.textContent = Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
+    } else {
+      summaryEl.textContent = '—';
+    }
+  });
+  dcUpdateOutput();
+}
+
+function dcAttachLoadListeners(i) {
+  const lEl    = document.getElementById(`dc-input-L${i}`);
+  const lminEl = document.getElementById(`dc-input-Lmin${i}`);
+  const lmaxEl = document.getElementById(`dc-input-Lmax${i}`);
+  const minBtn = document.getElementById(`dc-load-minus-${i}`);
+  const plusBtn = document.getElementById(`dc-load-plus-${i}`);
+  const us = dcLoadFieldUserSet[i];
+
+  lEl.addEventListener('input', () => {
+    if (lEl.value.trim() !== '') { us.L = true; lEl.classList.remove('auto-populated'); }
+    else us.L = false;
+  });
+  lEl.addEventListener('blur', () => {
+    if (validateDcL(i)) {
+      lEl.dataset.lastValid = lEl.value;
+      if (lEl.value.trim() === '') us.L = false;
+    } else {
+      lEl.value = lEl.dataset.lastValid ?? '';
+      if (lEl.value.trim() === '') us.L = false;
+      validateDcL(i);
+    }
+    if (dcMode === null && lEl.value.trim() !== '') dcSetMode('load');
+    dcTryAutoPopulateAll(i);
+    dcUpdateDcTotalRow();
+  });
+
+  lminEl.addEventListener('input', () => {
+    if (lminEl.value.trim() !== '') { us.Lmin = true; lminEl.classList.remove('auto-populated'); }
+    else us.Lmin = false;
+  });
+  lminEl.addEventListener('blur', () => {
+    if (validateDcLmin(i)) {
+      lminEl.dataset.lastValid = lminEl.value;
+      if (lminEl.value.trim() === '') us.Lmin = false;
+    } else {
+      lminEl.value = lminEl.dataset.lastValid ?? '';
+      if (lminEl.value.trim() === '') us.Lmin = false;
+      validateDcLmin(i);
+    }
+    if (dcMode === null && lminEl.value.trim() !== '') dcSetMode('load');
+    dcTryAutoPopulateAll(i);
+    dcUpdateDcTotalRow();
+  });
+
+  lmaxEl.addEventListener('input', () => {
+    if (lmaxEl.value.trim() !== '') { us.Lmax = true; lmaxEl.classList.remove('auto-populated'); }
+    else us.Lmax = false;
+  });
+  lmaxEl.addEventListener('blur', () => {
+    if (validateDcLmax(i)) {
+      lmaxEl.dataset.lastValid = lmaxEl.value;
+      if (lmaxEl.value.trim() === '') us.Lmax = false;
+    } else {
+      lmaxEl.value = lmaxEl.dataset.lastValid ?? '';
+      if (lmaxEl.value.trim() === '') us.Lmax = false;
+      validateDcLmax(i);
+    }
+    if (dcMode === null && lmaxEl.value.trim() !== '') dcSetMode('load');
+    dcTryAutoPopulateAll(i);
+    dcUpdateDcTotalRow();
+  });
+
+  if (minBtn)  minBtn.addEventListener('click',  dcRemoveLastLoadCard);
+  if (plusBtn) plusBtn.addEventListener('click', dcAddLoadCard);
+}
+
+function dcAddLoadCard() {
+  if (dcLoadCount >= DC_LOAD_MAX) return;
+  const i = dcLoadCount;
+  dcLoadErrors[i]       = { L: '', Lmin: '', Lmax: '' };
+  dcLoadFieldUserSet[i] = { L: false, Lmin: false, Lmax: false };
+
+  const card = document.createElement('div');
+  card.className = 'card load-card load-x-card';
+  card.id = `dc-load-card-${i}`;
+  card.innerHTML = `
+    <h2>L${i}</h2>
+    <div class="load-content">
+      <div class="load-row">
+        <div class="load-field load-field-nominal">
+          <label class="load-label" for="dc-input-L${i}">Nominal</label>
+          <div class="load-input-row">
+            <input class="field-input load-input" type="number"
+                   id="dc-input-L${i}" inputmode="decimal" step="0.1">
+            <span class="load-unit">W</span>
+          </div>
+        </div>
+        <div class="load-minmax-group">
+          <div class="load-field">
+            <label class="load-label" for="dc-input-Lmin${i}">Min</label>
+            <div class="load-input-row">
+              <input class="field-input load-input" type="number"
+                     id="dc-input-Lmin${i}" inputmode="decimal" step="0.1">
+              <span class="load-unit">W</span>
+            </div>
+          </div>
+          <div class="load-field">
+            <label class="load-label" for="dc-input-Lmax${i}">Max</label>
+            <div class="load-input-row">
+              <input class="field-input load-input" type="number"
+                     id="dc-input-Lmax${i}" inputmode="decimal" step="0.1">
+              <span class="load-unit unit-max">W</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <p class="load-error" id="dc-load-error-${i}"></p>
+    </div>
+    <div class="load-controls" id="dc-load-controls-${i}">
+      <button class="load-btn load-btn-minus" id="dc-load-minus-${i}" aria-label="Remove load card">−</button>
+      <button class="load-btn load-btn-plus"  id="dc-load-plus-${i}"  aria-label="Add load card">+</button>
+    </div>
+  `;
+
+  dcLoadContainer.appendChild(card);
+  dcLoadCount++;
+  dcAttachLoadListeners(i);
+  dcUpdateLoadControls();
+  dcUpdateDcTotalRow();
+}
+
+function dcRemoveLastLoadCard() {
+  if (dcLoadCount <= 1) return;
+  dcLoadCount--;
+  const card = document.getElementById(`dc-load-card-${dcLoadCount}`);
+  if (card) dcLoadContainer.removeChild(card);
+  dcLoadErrors.splice(dcLoadCount, 1);
+  dcLoadFieldUserSet.splice(dcLoadCount, 1);
+  dcUpdateLoadControls();
+  dcUpdateDcTotalRow();
+}
+
+// ─────────────────────────────────────────────
+// DC Mode control
+// ─────────────────────────────────────────────
+
+// dcSetMode: locks mode on first valid entry; shows/hides the appropriate sections.
+function dcSetMode(mode) {
+  if (dcMode !== null) return;  // already locked
+  dcMode = mode;
+  if (mode === 'time') {
+    // Mode A: hide LOAD group, show REPORT LOAD
+    document.getElementById('dc-load-group').style.display       = 'none';
+    document.getElementById('dc-report-load-card').style.display = '';
+    dcUpdateReportLoad();
+  } else {
+    // Mode B: hide TIME card, show REPORT TIME
+    document.getElementById('dc-time-card').style.display        = 'none';
+    document.getElementById('dc-report-time-card').style.display = '';
+    dcUpdateReportTime();
+  }
+}
+
+// dcUpdateOutput: called on any PACK/TIME/LOAD change; refreshes the active report.
+function dcUpdateOutput() {
+  if      (dcMode === 'time') dcUpdateReportLoad();
+  else if (dcMode === 'load') dcUpdateReportTime();
+}
+
+// ─────────────────────────────────────────────
+// DC calculation functions
+// ─────────────────────────────────────────────
+
+// ── Calculate system load (Mode A: E,T → L) ──
+// E = N × 3.6 × C / 1000  (Wh)
+// L    = E_nom / T_nom × 60
+// Lmin = E_min / T_max × 60  (min cap + max time → minimum load)
+// Lmax = E_max / T_min × 60  (max cap + min time → maximum load)
+function calcLoad(N, C, Cmin, Cmax, T, Tmin, Tmax) {
+  const n = parseInt(N, 10);
+  const c = parseFloat(C);
+  const t = parseFloat(T);
+
+  if (!Number.isInteger(n) || n < 1 || n > 8) return { L: '', Lmin: '', Lmax: '' };
+  if (isNaN(c) || c < 100 || c > 8000)        return { L: '', Lmin: '', Lmax: '' };
+  if (isNaN(t) || t <= 0)                      return { L: '', Lmin: '', Lmax: '' };
+
+  const rd1   = v => Math.round(v * 10) / 10;
+  const E_nom = n * 3.6 * c / 1000;
+  const L_nom = rd1(E_nom * 60 / t);
+
+  const cminV = parseFloat(Cmin);
+  const tmaxV = parseFloat(Tmax);
+  const E_min = (Cmin !== '' && !isNaN(cminV) && cminV > 0) ? n * 3.6 * cminV / 1000 : E_nom;
+  const T_max = (Tmax !== '' && !isNaN(tmaxV) && tmaxV > t) ? tmaxV : t;
+  const L_min = rd1(E_min * 60 / T_max);
+
+  const cmaxV = parseFloat(Cmax);
+  const tminV = parseFloat(Tmin);
+  const E_max = (Cmax !== '' && !isNaN(cmaxV) && cmaxV > 0) ? n * 3.6 * cmaxV / 1000 : E_nom;
+  const T_min = (Tmin !== '' && !isNaN(tminV) && tminV > 0 && tminV < t) ? tminV : t;
+  const L_max = rd1(E_max * 60 / T_min);
+
+  return {
+    L:    String(L_nom),
+    Lmin: L_min < L_nom ? String(L_min) : '',
+    Lmax: L_max > L_nom ? String(L_max) : '',
+  };
+}
+
+// ─────────────────────────────────────────────
+// DC report render functions
+// ─────────────────────────────────────────────
+
+// ── Build and display DC REPORT LOAD card (Mode A) ──
+// Rows: Cells | Cell Cap | [gap] | Run Time | Nom/Min/Max header | Load (bold)
+function dcUpdateReportLoad() {
+  const wrap = document.getElementById('dc-report-load-wrap');
+  if (!wrap) return;
+
+  function esc(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+  function v(raw) { return esc(raw.trim()); }
+
+  const N    = dcInputN    ? dcInputN.value.trim()    : '';
+  const C    = dcInputC    ? dcInputC.value.trim()    : '';
+  const Cmin = dcInputCmin ? dcInputCmin.value.trim() : '';
+  const Cmax = dcInputCmax ? dcInputCmax.value.trim() : '';
+  const T    = dcInputT    ? dcInputT.value.trim()    : '';
+  const Tmin = dcInputTmin ? dcInputTmin.value.trim() : '';
+  const Tmax = dcInputTmax ? dcInputTmax.value.trim() : '';
+
+  const { L, Lmin, Lmax } = calcLoad(N, C, Cmin, Cmax, T, Tmin, Tmax);
+  const nDisplay = N !== '' ? esc(N) : '—';
+
+  wrap.innerHTML = `
+    <div class="rpt-heading">System Load Calculation</div>
+    <table class="rpt-table">
+      <tbody>
+        <tr>
+          <td class="rpt-td-lbl">Cells</td>
+          <td class="rpt-td-num">${nDisplay}</td>
+          <td class="rpt-td-num"></td>
+          <td class="rpt-td-num"></td>
+          <td class="rpt-td-unit"></td>
+        </tr>
+        <tr>
+          <td class="rpt-td-lbl">Cell Cap</td>
+          <td class="rpt-td-num">${v(fmtCap(C))}</td>
+          <td class="rpt-td-num">${v(fmtCap(Cmin))}</td>
+          <td class="rpt-td-num">${v(fmtCap(Cmax))}</td>
+          <td class="rpt-td-unit">mAh</td>
+        </tr>
+        <tr class="rpt-gap"><td colspan="5"></td></tr>
+        <tr>
+          <td class="rpt-td-lbl">Run Time</td>
+          <td class="rpt-td-num">${v(fmtTime(T))}</td>
+          <td class="rpt-td-num">${v(fmtTime(Tmin))}</td>
+          <td class="rpt-td-num">${v(fmtTime(Tmax))}</td>
+          <td class="rpt-td-unit">Min</td>
+        </tr>
+        <tr class="rpt-col-hdr">
+          <td class="rpt-td-lbl"></td>
+          <td class="rpt-td-num">Nom</td>
+          <td class="rpt-td-num">Min</td>
+          <td class="rpt-td-num">Max</td>
+          <td class="rpt-td-unit"></td>
+        </tr>
+        <tr class="rpt-time-row">
+          <td class="rpt-td-lbl">Load</td>
+          <td class="rpt-td-num">${v(fmtLoad(L))}</td>
+          <td class="rpt-td-num">${v(fmtLoad(Lmin))}</td>
+          <td class="rpt-td-num">${v(fmtLoad(Lmax))}</td>
+          <td class="rpt-td-unit">W</td>
+        </tr>
+      </tbody>
+    </table>`;
+}
+
+// ── Build and display DC REPORT TIME card (Mode B) ──
+// Same structure as Calc REPORT TIME but using dc-prefixed elements.
+function dcUpdateReportTime() {
+  const wrap = document.getElementById('dc-report-time-wrap');
+  if (!wrap) return;
+
+  function esc(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+  function v(raw) { return esc(raw.trim()); }
+
+  const N    = dcInputN    ? dcInputN.value.trim()    : '';
+  const C    = dcInputC    ? dcInputC.value.trim()    : '';
+  const Cmin = dcInputCmin ? dcInputCmin.value.trim() : '';
+  const Cmax = dcInputCmax ? dcInputCmax.value.trim() : '';
+
+  const lsLEl    = document.getElementById('dc-ls-L');
+  const lsLminEl = document.getElementById('dc-ls-Lmin');
+  const lsLmaxEl = document.getElementById('dc-ls-Lmax');
+  const lsL    = lsLEl    ? lsLEl.textContent.trim()    : '—';
+  const lsLmin = lsLminEl ? lsLminEl.textContent.trim() : '—';
+  const lsLmax = lsLmaxEl ? lsLmaxEl.textContent.trim() : '—';
+
+  const { T, Tmin, Tmax } = calcRunTime(N, C, Cmin, Cmax, lsL, lsLmin, lsLmax);
+  const nDisplay = N !== '' ? esc(N) : '—';
+
+  let lxRows = '';
+  for (let i = 0; i < dcLoadCount; i++) {
+    const lEl    = document.getElementById(`dc-input-L${i}`);
+    const lminEl = document.getElementById(`dc-input-Lmin${i}`);
+    const lmaxEl = document.getElementById(`dc-input-Lmax${i}`);
+    const lv    = lEl    ? lEl.value.trim()    : '';
+    const lminv = lminEl ? lminEl.value.trim() : '';
+    const lmaxv = lmaxEl ? lmaxEl.value.trim() : '';
+    lxRows += `<tr>
+          <td class="rpt-td-lbl rpt-lx">L${i}</td>
+          <td class="rpt-td-num rpt-lx">${v(fmtLoad(lv))}</td>
+          <td class="rpt-td-num rpt-lx">${v(fmtLoad(lminv))}</td>
+          <td class="rpt-td-num rpt-lx">${v(fmtLoad(lmaxv))}</td>
+          <td class="rpt-td-unit rpt-lx">W</td>
+        </tr>`;
+  }
+
+  wrap.innerHTML = `
+    <div class="rpt-heading">Battery Run Time Calculator</div>
+    <table class="rpt-table">
+      <tbody>
+        <tr>
+          <td class="rpt-td-lbl">Cells</td>
+          <td class="rpt-td-num">${nDisplay}</td>
+          <td class="rpt-td-num"></td>
+          <td class="rpt-td-num"></td>
+          <td class="rpt-td-unit"></td>
+        </tr>
+        <tr>
+          <td class="rpt-td-lbl">Cell Cap</td>
+          <td class="rpt-td-num">${v(fmtCap(C))}</td>
+          <td class="rpt-td-num">${v(fmtCap(Cmin))}</td>
+          <td class="rpt-td-num">${v(fmtCap(Cmax))}</td>
+          <td class="rpt-td-unit">mAh</td>
+        </tr>
+        <tr class="rpt-gap"><td colspan="5"></td></tr>
+        <tr>
+          <td class="rpt-td-lbl">Load</td>
+          <td class="rpt-td-num">${v(fmtLoad(lsL))}</td>
+          <td class="rpt-td-num">${v(fmtLoad(lsLmin))}</td>
+          <td class="rpt-td-num">${v(fmtLoad(lsLmax))}</td>
+          <td class="rpt-td-unit">W</td>
+        </tr>
+        ${lxRows}
+        <tr class="rpt-col-hdr">
+          <td class="rpt-td-lbl"></td>
+          <td class="rpt-td-num">Nom</td>
+          <td class="rpt-td-num">Min</td>
+          <td class="rpt-td-num">Max</td>
+          <td class="rpt-td-unit"></td>
+        </tr>
+        <tr class="rpt-time-row">
+          <td class="rpt-td-lbl">Run Time</td>
+          <td class="rpt-td-num">${v(fmtTime(T))}</td>
+          <td class="rpt-td-num">${v(fmtTime(Tmin))}</td>
+          <td class="rpt-td-num">${v(fmtTime(Tmax))}</td>
+          <td class="rpt-td-unit">Min</td>
+        </tr>
+      </tbody>
+    </table>`;
+}
+
+// ─────────────────────────────────────────────
+// DC page reset — called from resetPage('page-cost')
+// ─────────────────────────────────────────────
+function dcResetPage() {
+  dcMode = null;
+
+  // Restore section visibility
+  document.getElementById('dc-time-card').style.display        = '';
+  document.getElementById('dc-load-group').style.display       = '';
+  document.getElementById('dc-report-load-card').style.display = 'none';
+  document.getElementById('dc-report-time-card').style.display = 'none';
+
+  // Reset PACK
+  dcInputN.value = '7';   dcInputN.dataset.lastValid = '7';
+  setDcFieldState(dcInputN, 'N', '');
+
+  dcInputC.value = '2000'; dcInputC.dataset.lastValid = '2000';
+  setDcFieldState(dcInputC, 'C', '');
+
+  dcInputCmin.value = '';  dcInputCmin.dataset.lastValid = '';
+  dcInputCmin.classList.remove('auto-populated');
+  dcPackFieldUserSet.Cmin = false;
+  setDcFieldState(dcInputCmin, 'Cmin', '');
+
+  dcInputCmax.value = '';  dcInputCmax.dataset.lastValid = '';
+  dcInputCmax.classList.remove('auto-populated');
+  dcPackFieldUserSet.Cmax = false;
+  setDcFieldState(dcInputCmax, 'Cmax', '');
+
+  tryAutoPopulateDcPack();
+
+  // Reset TIME
+  [dcInputT, dcInputTmin, dcInputTmax].forEach(el => {
+    el.value = '';
+    el.dataset.lastValid = '';
+    el.classList.remove('input-error');
+  });
+  dcTimeErrors.T = ''; dcTimeErrors.Tmin = ''; dcTimeErrors.Tmax = '';
+  dcTimeErrorEl.textContent = '';
+
+  // Reset LOAD cards — remove all and re-create a fresh L(0)
+  while (dcLoadCount > 0) {
+    dcLoadCount--;
+    const card = document.getElementById(`dc-load-card-${dcLoadCount}`);
+    if (card) dcLoadContainer.removeChild(card);
+  }
+  dcLoadErrors.length       = 0;
+  dcLoadFieldUserSet.length = 0;
+  dcAddLoadCard();   // adds fresh L(0) and resets summary totals
+}
+
+// ── DC copy buttons ──────────────────────────────────────────────────────────
+// Mode A: REPORT LOAD card copy button
+(function () {
+  const copyBtn    = document.getElementById('dc-rpt-load-copy-btn');
+  const reportCard = document.getElementById('dc-report-load-card');
+  if (!copyBtn || !reportCard) return;
+
+  copyBtn.addEventListener('click', () => {
+    const wrap = document.getElementById('dc-report-load-wrap');
+    if (!wrap) return;
+    const headingEl = wrap.querySelector('.rpt-heading');
+    const lines = headingEl ? [headingEl.textContent.trim()] : [];
+    wrap.querySelectorAll('.rpt-table tbody tr').forEach(row => {
+      if (row.classList.contains('rpt-gap')) { lines.push(''); return; }
+      const c    = Array.from(row.querySelectorAll('td'));
+      const lbl  = (c[0] ? c[0].textContent.trim() : '').padEnd(10);
+      const nom  = (c[1] ? c[1].textContent.trim() : '').padStart(7);
+      const min  = (c[2] ? c[2].textContent.trim() : '').padStart(7);
+      const max  = (c[3] ? c[3].textContent.trim() : '').padStart(7);
+      const unit = c[4] ? c[4].textContent.trim() : '';
+      lines.push(lbl + nom + min + max + (unit ? '  ' + unit : ''));
+    });
+    navigator.clipboard.writeText(lines.join('\n').trimEnd())
+      .then(() => {
+        reportCard.style.backgroundColor = '#66BB6A';
+        setTimeout(() => { reportCard.style.backgroundColor = ''; }, 250);
+      })
+      .catch(() => {});
+  });
+}());
+
+// Mode B: DC REPORT TIME card copy button
+(function () {
+  const copyBtn    = document.getElementById('dc-rpt-time-copy-btn');
+  const reportCard = document.getElementById('dc-report-time-card');
+  if (!copyBtn || !reportCard) return;
+
+  copyBtn.addEventListener('click', () => {
+    const wrap = document.getElementById('dc-report-time-wrap');
+    if (!wrap) return;
+    const headingEl = wrap.querySelector('.rpt-heading');
+    const lines = headingEl ? [headingEl.textContent.trim()] : [];
+    wrap.querySelectorAll('.rpt-table tbody tr').forEach(row => {
+      if (row.classList.contains('rpt-gap')) { lines.push(''); return; }
+      const c    = Array.from(row.querySelectorAll('td'));
+      const lbl  = (c[0] ? c[0].textContent.trim() : '').padEnd(10);
+      const nom  = (c[1] ? c[1].textContent.trim() : '').padStart(7);
+      const min  = (c[2] ? c[2].textContent.trim() : '').padStart(7);
+      const max  = (c[3] ? c[3].textContent.trim() : '').padStart(7);
+      const unit = c[4] ? c[4].textContent.trim() : '';
+      lines.push(lbl + nom + min + max + (unit ? '  ' + unit : ''));
+    });
+    navigator.clipboard.writeText(lines.join('\n').trimEnd())
+      .then(() => {
+        reportCard.style.backgroundColor = '#66BB6A';
+        setTimeout(() => { reportCard.style.backgroundColor = ''; }, 250);
+      })
+      .catch(() => {});
+  });
+}());
+
+// ── Initialise DfCost: create initial L(0) card (report cards start hidden via HTML) ──
+dcAddLoadCard();
