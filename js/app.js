@@ -1363,16 +1363,18 @@ addLoadCard();
 // LOAD totals are populated by addLoadCard() above; TIME fields start empty.
 updateReportTime();
 
-// ── REPORT TIME card — tap to copy ───────────────────────────────
-// On tap/click: collects formatted plain-text from the rendered table,
+// ── REPORT TIME card — long-press to copy ────────────────────────
+// Hold for 2 s: collects formatted plain-text from the rendered table,
 // copies to clipboard, then flashes the card bright green for 0.5 s.
+// Scroll (touchmove) or releasing early cancels the operation.
 (function () {
   const reportCard = document.querySelector('.report-time-card');
   if (!reportCard) return;
 
-  reportCard.style.cursor = 'pointer';
+  let pressTimer = null;
 
-  reportCard.addEventListener('click', () => {
+  function doCopy() {
+    pressTimer = null;
     const wrap = document.getElementById('report-time-wrap');
     if (!wrap) return;
 
@@ -1402,5 +1404,29 @@ updateReportTime();
         setTimeout(() => { reportCard.style.backgroundColor = ''; }, 500);
       })
       .catch(() => { /* clipboard unavailable — fail silently */ });
-  });
+  }
+
+  function startPress() {
+    clearTimeout(pressTimer);
+    pressTimer = setTimeout(doCopy, 2000);
+  }
+
+  function cancelPress() {
+    clearTimeout(pressTimer);
+    pressTimer = null;
+  }
+
+  // Touch (mobile) — passive where possible; touchmove cancels (user is scrolling)
+  reportCard.addEventListener('touchstart',  startPress,  { passive: true });
+  reportCard.addEventListener('touchend',    cancelPress);
+  reportCard.addEventListener('touchcancel', cancelPress);
+  reportCard.addEventListener('touchmove',   cancelPress, { passive: true });
+
+  // Mouse (desktop)
+  reportCard.addEventListener('mousedown',  startPress);
+  reportCard.addEventListener('mouseup',    cancelPress);
+  reportCard.addEventListener('mouseleave', cancelPress);
+
+  // Suppress browser context menu triggered by long-press on mobile
+  reportCard.addEventListener('contextmenu', e => e.preventDefault());
 }());
