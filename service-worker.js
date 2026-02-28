@@ -2,7 +2,7 @@
 // Service Worker — Battery Run Time Calculator
 // Cache version: increment this with every deployment
 // ─────────────────────────────────────────────
-const CACHE_NAME = 'batt-calc-v34';
+const CACHE_NAME = 'batt-calc-v35';
 
 // All assets to pre-cache on first install
 // Use relative paths (./…) so this works on GitHub Pages subdirectories
@@ -51,32 +51,44 @@ self.addEventListener('activate', event => {
 });
 
 // ── Fetch ─────────────────────────────────────
-// Strategy: stale-while-revalidate
-//   1. Respond immediately with cached version (fast)
-//   2. Fetch fresh copy from network in the background and update the cache
-//   3. If nothing is cached yet, wait for the network response
+// Strategy:
+//   HTML (index.html / root)  → network-first, fall back to cache
+//   All other assets (JS/CSS) → cache-first, fall back to network
+// Network-first for HTML ensures users always get the latest markup.
 self.addEventListener('fetch', event => {
-  event.respondWith(
-    caches.open(CACHE_NAME).then(cache => {
-      return cache.match(event.request).then(cachedResponse => {
+  const url = new URL(event.request.url);
+  const isHtml = url.pathname.endsWith('.html') || url.pathname.endsWith('/');
 
-        // Always fetch a fresh copy in the background to keep cache current
-        const networkFetch = fetch(event.request)
-          .then(networkResponse => {
-            // Only cache successful same-origin responses
-            if (networkResponse && networkResponse.ok) {
-              cache.put(event.request, networkResponse.clone());
-            }
-            return networkResponse;
-          })
-          .catch(() => {
-            // Network failed — that's OK, we have the cache
-            return null;
-          });
-
-        // Return cached response right away; fall back to network if not cached
-        return cachedResponse || networkFetch;
-      });
-    })
-  );
+  if (isHtml) {
+    // Network-first: always try to get fresh HTML
+    event.respondWith(
+      fetch(event.request)
+        .then(networkResponse => {
+          if (networkResponse && networkResponse.ok) {
+            caches.open(CACHE_NAME).then(cache =>
+              cache.put(event.request, networkResponse.clone())
+            );
+          }
+          return networkResponse;
+        })
+        .catch(() => caches.match(event.request))  // offline fallback
+    );
+  } else {
+    // Cache-first for JS, CSS, images, etc.
+    event.respondWith(
+      caches.open(CACHE_NAME).then(cache =>
+        cache.match(event.request).then(cachedResponse => {
+          const networkFetch = fetch(event.request)
+            .then(networkResponse => {
+              if (networkResponse && networkResponse.ok) {
+                cache.put(event.request, networkResponse.clone());
+              }
+              return networkResponse;
+            })
+            .catch(() => null);
+          return cachedResponse || networkFetch;
+        })
+      )
+    );
+  }
 });

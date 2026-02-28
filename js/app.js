@@ -543,7 +543,13 @@ function switchPage(pageId) {
 // ── Reset a page to its default state ──
 // Called every time the user taps into a page.
 function resetPage(pageId) {
-  if (pageId === 'page-time') { dtResetPage(); return; }
+  if (pageId === 'page-time') {
+    // Force all SCREEN DfTime cards visible (guards against any inline style remnants)
+    document.getElementById('dt-pack-card').style.display  = '';
+    document.getElementById('dt-load-group').style.display = '';
+    dtResetPage();
+    return;
+  }
   if (pageId === 'page-cost') { dcResetPage(); return; }
   if (pageId !== 'page-calc') return;
 
