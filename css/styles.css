@@ -715,7 +715,7 @@ body {
 
 /* Card heading ("Battery Run Time Calculator") */
 .rpt-heading {
-  font-size: 0.7rem;
+  font-size: 0.8rem;
   font-weight: 700;
   color: var(--color-text);
   margin-bottom: 0.4rem;
@@ -723,9 +723,9 @@ body {
 
 /* Table base — inherits card font (proportional); columns align via CSS, not monospace spaces */
 .rpt-table {
-  width: 100%;
+  width: auto;          /* shrink to content width so table sits left, not stretched across card */
   border-collapse: collapse;
-  font-size: 0.65rem;   /* proportional font — visually smaller than monospace at same size */
+  font-size: 0.75rem;   /* main rows (Cell Cap / Cells / Load / Run Time) */
   line-height: 1.55;
 }
 
@@ -771,8 +771,8 @@ body {
 /* Gap row — small breathing room between Cells and Load sections */
 .rpt-table .rpt-gap td { height: 0.3rem; }
 
-/* Lx breakdown rows — light grey to distinguish from LOAD total */
-.rpt-table .rpt-lx { color: #BDBDBD; }
+/* Lx breakdown rows — light grey, kept at previous smaller size */
+.rpt-table .rpt-lx { color: #BDBDBD; font-size: 0.65rem; }
 
 /* Run Time row — bold result row with a subtle separator above */
 .rpt-table .rpt-time-row td {
