@@ -1363,18 +1363,15 @@ addLoadCard();
 // LOAD totals are populated by addLoadCard() above; TIME fields start empty.
 updateReportTime();
 
-// ── REPORT TIME card — long-press to copy ────────────────────────
-// Hold for 2 s: collects formatted plain-text from the rendered table,
-// copies to clipboard, then flashes the card bright green for 0.5 s.
-// Scroll (touchmove) or releasing early cancels the operation.
+// ── REPORT TIME card — copy icon button ──────────────────────────
+// Tap the clipboard icon (top-right corner) to copy the formatted
+// plain-text report to clipboard; flashes card bright green for 0.25 s.
 (function () {
+  const copyBtn    = document.getElementById('rpt-copy-btn');
   const reportCard = document.querySelector('.report-time-card');
-  if (!reportCard) return;
+  if (!copyBtn || !reportCard) return;
 
-  let pressTimer = null;
-
-  function doCopy() {
-    pressTimer = null;
+  copyBtn.addEventListener('click', () => {
     const wrap = document.getElementById('report-time-wrap');
     if (!wrap) return;
 
@@ -1399,34 +1396,10 @@ updateReportTime();
 
     navigator.clipboard.writeText(lines.join('\n').trimEnd())
       .then(() => {
-        // Flash brighter green for 0.5 s then revert to original card colour
+        // Flash brighter green for 0.25 s then revert to original card colour
         reportCard.style.backgroundColor = '#66BB6A';
-        setTimeout(() => { reportCard.style.backgroundColor = ''; }, 500);
+        setTimeout(() => { reportCard.style.backgroundColor = ''; }, 250);
       })
       .catch(() => { /* clipboard unavailable — fail silently */ });
-  }
-
-  function startPress() {
-    clearTimeout(pressTimer);
-    pressTimer = setTimeout(doCopy, 2000);
-  }
-
-  function cancelPress() {
-    clearTimeout(pressTimer);
-    pressTimer = null;
-  }
-
-  // Touch (mobile) — passive where possible; touchmove cancels (user is scrolling)
-  reportCard.addEventListener('touchstart',  startPress,  { passive: true });
-  reportCard.addEventListener('touchend',    cancelPress);
-  reportCard.addEventListener('touchcancel', cancelPress);
-  reportCard.addEventListener('touchmove',   cancelPress, { passive: true });
-
-  // Mouse (desktop)
-  reportCard.addEventListener('mousedown',  startPress);
-  reportCard.addEventListener('mouseup',    cancelPress);
-  reportCard.addEventListener('mouseleave', cancelPress);
-
-  // Suppress browser context menu triggered by long-press on mobile
-  reportCard.addEventListener('contextmenu', e => e.preventDefault());
+  });
 }());

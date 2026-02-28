@@ -714,8 +714,36 @@ body {
 /* ── REPORT TIME card — HTML table layout ── */
 
 .report-time-card {
+  position: relative;                 /* anchor for the absolute-positioned copy button */
   padding: 0.75rem var(--spacing-md); /* top/bottom 25% less than --spacing-md (1rem) */
   background-color: #E8F5E9;          /* light green — matches app brand colour */
+}
+
+/* Copy-to-clipboard icon button — top-right corner */
+.rpt-copy-btn {
+  position: absolute;
+  top: 0.35rem;
+  right: 0.35rem;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  padding: 0;
+  cursor: pointer;
+  color: var(--color-text-secondary);
+  touch-action: manipulation;
+  user-select: none;
+  transition: color 0.15s, background-color 0.15s;
+}
+
+.rpt-copy-btn:hover,
+.rpt-copy-btn:active {
+  color: var(--color-primary);
+  background-color: rgba(0, 0, 0, 0.06);
 }
 
 /* Card heading ("Battery Run Time Calculator") */
