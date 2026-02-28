@@ -393,6 +393,12 @@ body {
   background-color: var(--color-bg);
 }
 
+/* Italic subscript-style "f" in Df nav labels (DfTime / DfCost / DfLoad) */
+.nav-df {
+  font-style: italic;
+  font-size: 0.8em; /* one step smaller, relative to the button's font-size */
+}
+
 /* ── Page containers — show/hide based on active nav tab ── */
 /* Each page is a flex column with standard card gap            */
 .page {
