@@ -484,6 +484,8 @@ inputT.addEventListener('blur', () => {
     validateT();
   }
   tryAutoPopulateTime();
+  // SCREEN DfTime: reveal PACK + LOAD once T holds a valid non-empty value
+  if (inputT.value.trim() !== '') dtRevealPackAndLoad();
 });
 
 // Tmin — track ownership on input; revert-on-invalid on blur; auto-populate peer
@@ -2387,13 +2389,6 @@ function dtRevealPackAndLoad() {
   document.getElementById('dt-pack-card').style.display   = '';
   document.getElementById('dt-load-group').style.display  = '';
 }
-
-// Second blur listener on input-T — DfTime-specific reveal logic
-inputT.addEventListener('blur', () => {
-  if (!dtPackLoadVisible && inputT.value.trim() !== '' && timeErrors.T === '') {
-    dtRevealPackAndLoad();
-  }
-});
 
 // ── DT PACK elements and state ──
 const dtInputN    = document.getElementById('dt-input-N');
