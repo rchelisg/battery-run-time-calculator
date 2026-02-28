@@ -484,8 +484,13 @@ inputT.addEventListener('blur', () => {
     validateT();
   }
   tryAutoPopulateTime();
-  // SCREEN DfTime: reveal PACK + LOAD on first valid T entry
-  if (inputT.value.trim() !== '') dtRevealPackAndLoad();
+  // SCREEN DfTime: reveal PACK+LOAD on first valid T entry;
+  // on subsequent T blurs (after PACK+LOAD visible) lock Mode A
+  if (inputT.value.trim() !== '') {
+    const wasVisible = dtPackLoadVisible;
+    dtRevealPackAndLoad();
+    if (wasVisible) dtSetMode('time');
+  }
 });
 
 // Tmin — track ownership on input; revert-on-invalid on blur; auto-populate peer
@@ -507,6 +512,8 @@ inputTmin.addEventListener('blur', () => {
     validateTmin();
   }
   tryAutoPopulateTime();
+  // SCREEN DfTime: lock Mode A if PACK+LOAD are already visible
+  if (inputTmin.value.trim() !== '' && dtPackLoadVisible) dtSetMode('time');
 });
 
 // ─────────────────────────────────────────────
@@ -2383,12 +2390,32 @@ dcAddLoadCard();
 // Flag: true once PACK + LOAD have been revealed
 let dtPackLoadVisible = false;
 
+// Mode lock: null until first valid entry after reveal.
+// 'time' → hide LOAD group, solve E,T→L
+// 'load' → hide PACK card, solve E,L→T
+let dtMode = null;
+
 // Called from inputT blur listener when T has a valid non-empty value
 function dtRevealPackAndLoad() {
   if (dtPackLoadVisible) return;
   dtPackLoadVisible = true;
   document.getElementById('dt-pack-card').style.display  = '';
   document.getElementById('dt-load-group').style.display = '';
+}
+
+// Called when the user makes a valid entry in TIME card or LOAD group (after reveal).
+// Locks the mode on first call; subsequent calls are ignored.
+function dtSetMode(mode) {
+  if (dtMode !== null) return;          // already locked — ignore
+  dtMode = mode;
+  if (mode === 'time') {
+    document.getElementById('dt-load-group').style.display = 'none';
+  } else {
+    document.getElementById('dt-pack-card').style.display  = 'none';
+  }
+  const el = document.getElementById('dt-output-card');
+  el.textContent = mode === 'time' ? 'solve E, T→L' : 'solve E, L→T';
+  el.style.display = '';
 }
 
 // ── DT PACK elements and state ──
@@ -2792,6 +2819,8 @@ function dtAttachLoadListeners(i) {
     }
     dtTryAutoPopulateAll(i);
     dtUpdateDtTotalRow();
+    // SCREEN DfTime: lock Mode B if PACK+LOAD are visible and a valid L was entered
+    if (lEl.value.trim() !== '' && dtPackLoadVisible) dtSetMode('load');
   });
 
   lminEl.addEventListener('input', () => {
@@ -2809,6 +2838,8 @@ function dtAttachLoadListeners(i) {
     }
     dtTryAutoPopulateAll(i);
     dtUpdateDtTotalRow();
+    // SCREEN DfTime: lock Mode B if PACK+LOAD are visible and a valid Lmin was entered
+    if (lminEl.value.trim() !== '' && dtPackLoadVisible) dtSetMode('load');
   });
 
   lmaxEl.addEventListener('input', () => {
@@ -2826,6 +2857,8 @@ function dtAttachLoadListeners(i) {
     }
     dtTryAutoPopulateAll(i);
     dtUpdateDtTotalRow();
+    // SCREEN DfTime: lock Mode B if PACK+LOAD are visible and a valid Lmax was entered
+    if (lmaxEl.value.trim() !== '' && dtPackLoadVisible) dtSetMode('load');
   });
 
   if (minBtn)  minBtn.addEventListener('click',  dtRemoveLastLoadCard);
@@ -2902,10 +2935,12 @@ function dtRemoveLastLoadCard() {
 // DfTime page reset — called from resetPage('page-time')
 // ─────────────────────────────────────────────
 function dtResetPage() {
-  // Re-hide PACK + LOAD; reset flag so reveal fires again on next valid T
+  // Re-hide PACK + LOAD; reset flags so reveal + mode lock fire again on next valid entry
   dtPackLoadVisible = false;
-  document.getElementById('dt-pack-card').style.display  = 'none';
-  document.getElementById('dt-load-group').style.display = 'none';
+  dtMode = null;
+  document.getElementById('dt-pack-card').style.display   = 'none';
+  document.getElementById('dt-load-group').style.display  = 'none';
+  document.getElementById('dt-output-card').style.display = 'none';
 
   // Reset DT PACK
   dtInputN.value = '7';   dtInputN.dataset.lastValid = '7';
