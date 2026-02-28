@@ -484,8 +484,6 @@ inputT.addEventListener('blur', () => {
     validateT();
   }
   tryAutoPopulateTime();
-  // SCREEN DfTime: reveal PACK + LOAD once T holds a valid non-empty value
-  if (inputT.value.trim() !== '') dtRevealPackAndLoad();
 });
 
 // Tmin — track ownership on input; revert-on-invalid on blur; auto-populate peer
@@ -2380,16 +2378,6 @@ dcAddLoadCard();
 // After first valid T entry: PACK card + LOAD group revealed.
 // ─────────────────────────────────────────────
 
-// Flag: have PACK + LOAD been revealed yet?
-let dtPackLoadVisible = false;
-
-// Reveal PACK card and LOAD group once T is valid
-function dtRevealPackAndLoad() {
-  dtPackLoadVisible = true;
-  document.getElementById('dt-pack-card').style.display   = '';
-  document.getElementById('dt-load-group').style.display  = '';
-}
-
 // ── DT PACK elements and state ──
 const dtInputN    = document.getElementById('dt-input-N');
 const dtInputC    = document.getElementById('dt-input-C');
@@ -2901,11 +2889,6 @@ function dtRemoveLastLoadCard() {
 // DfTime page reset — called from resetPage('page-time')
 // ─────────────────────────────────────────────
 function dtResetPage() {
-  // Re-hide PACK + LOAD (visible only after a valid T entry)
-  dtPackLoadVisible = false;
-  document.getElementById('dt-pack-card').style.display  = 'none';
-  document.getElementById('dt-load-group').style.display = 'none';
-
   // Reset DT PACK
   dtInputN.value = '7';   dtInputN.dataset.lastValid = '7';
   setDtFieldState(dtInputN, 'N', '');
