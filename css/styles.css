@@ -227,6 +227,7 @@ body {
   align-items: center;
   gap: var(--spacing-sm);
   padding: 0.15rem var(--spacing-sm); /* minimal top/bottom — maximum compactness */
+  background-color: #F0F7FF;          /* very very light blue */
 }
 
 /* Vertical "PACK" title — rotated 180° so text reads bottom → top */
@@ -446,6 +447,9 @@ body {
   gap: var(--spacing-sm);
   padding: 0.15rem var(--spacing-sm);
 }
+
+/* Very very light red on LOAD summary + L(x) cards; Time card keeps default white */
+.load-card:not(.time-card) { background-color: #FFF3F3; }
 
 /* Vertical "LOADx" label — same rotation as PACK */
 .load-card h2 {
@@ -760,12 +764,12 @@ body {
 }
 
 /* Column spacing via nth-child:
-   col1(label) →col2(Nom):  2X = 0.8rem
-   col2(Nom)   →col3(Min):  2X = 0.8rem
+   col1(label) →col2(Nom):  4X = 1.6rem
+   col2(Nom)   →col3(Min):  4X = 1.6rem
    col3(Min)   →col4(Max):   X = 0.4rem
    col4(Max)   →col5(unit):  X = 0.4rem  (handled by .rpt-td-unit above) */
-.rpt-table td:nth-child(2) { padding-left: 0.8rem; }  /* Nom: 2X from label  */
-.rpt-table td:nth-child(3) { padding-left: 0.8rem; }  /* Min: 2X from Nom    */
+.rpt-table td:nth-child(2) { padding-left: 1.6rem; }  /* Nom: 4X from label  */
+.rpt-table td:nth-child(3) { padding-left: 1.6rem; }  /* Min: 4X from Nom    */
 .rpt-table td:nth-child(4) { padding-left: 0.4rem; }  /* Max: X  from Min    */
 
 /* Gap row — small breathing room between Cells and Load sections */
