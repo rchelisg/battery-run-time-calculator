@@ -2374,9 +2374,26 @@ dcAddLoadCard();
 
 // ─────────────────────────────────────────────
 // DfTime page — dt-prefixed IDs; independent state
-// Shows: PACK card + TIME card + LOAD/L(x) cards
-// Report output will be added in a future spec.
+// Initial display: TIME card only.
+// After first valid T entry: PACK card + LOAD group revealed.
 // ─────────────────────────────────────────────
+
+// Flag: have PACK + LOAD been revealed yet?
+let dtPackLoadVisible = false;
+
+// Reveal PACK card and LOAD group once T is valid
+function dtRevealPackAndLoad() {
+  dtPackLoadVisible = true;
+  document.getElementById('dt-pack-card').style.display   = '';
+  document.getElementById('dt-load-group').style.display  = '';
+}
+
+// Second blur listener on input-T — DfTime-specific reveal logic
+inputT.addEventListener('blur', () => {
+  if (!dtPackLoadVisible && inputT.value.trim() !== '' && timeErrors.T === '') {
+    dtRevealPackAndLoad();
+  }
+});
 
 // ── DT PACK elements and state ──
 const dtInputN    = document.getElementById('dt-input-N');
@@ -2889,6 +2906,11 @@ function dtRemoveLastLoadCard() {
 // DfTime page reset — called from resetPage('page-time')
 // ─────────────────────────────────────────────
 function dtResetPage() {
+  // Re-hide PACK + LOAD (visible only after a valid T entry)
+  dtPackLoadVisible = false;
+  document.getElementById('dt-pack-card').style.display  = 'none';
+  document.getElementById('dt-load-group').style.display = 'none';
+
   // Reset DT PACK
   dtInputN.value = '7';   dtInputN.dataset.lastValid = '7';
   setDtFieldState(dtInputN, 'N', '');
