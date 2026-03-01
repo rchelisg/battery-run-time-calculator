@@ -1145,13 +1145,12 @@ function removeLastLoadCard() {
 // ── Calculate run time (PAGE Calc) ──
 // Formula: E = N × 3.6 × C / 1000  (Wh)   T = E / L × 60  (Min)
 //
-// Spec (Solve for T given E and L):
-//   Build E-set  = { E, Emin (if Cmin present), Emax (if Cmax present) }
-//   Build L-set  = { L, Lmin (if present), Lmax (if present) }
-//   Candidates   = all (Ei / Lj) × 60
-//   T (nominal)  = E / L × 60  — always shown
-//   Tmin         = min(candidates)  shown only if < T
-//   Tmax         = max(candidates)  shown only if > T
+// v1.1 spec (T(EL) path):
+//   T    = E / L × 60
+//   Tmin = Emin / Lmax × 60   (Emin uses Cmin if present; Lmax from summary if present)
+//   Tmax = Emax / Lmin × 60   (Emax uses Cmax if present; Lmin from summary if present)
+//   When Emin == E and Lmax == L (no range data), Tmin == T → not shown.
+//   When Emax == E and Lmin == L (no range data), Tmax == T → not shown.
 //
 // Returns { T, Tmin, Tmax } as strings ('' = absent/unknown → shows "—" in report).
 function calcRunTime(N, C, Cmin, Cmax, lsL, lsLmin, lsLmax) {
@@ -1164,41 +1163,33 @@ function calcRunTime(N, C, Cmin, Cmax, lsL, lsLmin, lsLmax) {
   if (isNaN(c) || c < 100  || c > 8000)        return { T: '', Tmin: '', Tmax: '' };
   if (isNaN(l) || l <= 0)                       return { T: '', Tmin: '', Tmax: '' };
 
+  const rd1  = v => Math.round(v * 10) / 10;
+
   // Nominal energy (Wh) and run time (Min)
   const E    = n * 3.6 * c / 1000;
-  const tNom = E / l * 60;
+  const T    = rd1(E / l * 60);
 
-  // Build E-set: add Emin/Emax only when Cmin/Cmax contain valid numbers
-  const eSet = [E];
+  // v1.1: Emin uses Cmin if present; otherwise falls back to E
+  // v1.1: Emax uses Cmax if present; otherwise falls back to E
+  // v1.1: Lmax uses lsLmax if present (not '—'); otherwise falls back to L
+  // v1.1: Lmin uses lsLmin if present (not '—'); otherwise falls back to L
   const cminV = parseFloat(Cmin);
   const cmaxV = parseFloat(Cmax);
-  if (Cmin !== '' && !isNaN(cminV) && cminV > 0) eSet.push(n * 3.6 * cminV / 1000);
-  if (Cmax !== '' && !isNaN(cmaxV) && cmaxV > 0) eSet.push(n * 3.6 * cmaxV / 1000);
-
-  // Build L-set: add Lmin/Lmax only when the summary spans show real numbers (not '—')
-  const lSet = [l];
   const lminV = parseFloat(lsLmin);
   const lmaxV = parseFloat(lsLmax);
-  if (lsLmin !== '—' && !isNaN(lminV) && lminV > 0) lSet.push(lminV);
-  if (lsLmax !== '—' && !isNaN(lmaxV) && lmaxV > 0) lSet.push(lmaxV);
 
-  // All (Ei / Lj) × 60 candidates — rounded to 1 decimal
-  const rd1  = v => Math.round(v * 10) / 10;
-  const cands = [];
-  for (const e of eSet) {
-    for (const lv of lSet) {
-      cands.push(rd1(e / lv * 60));
-    }
-  }
+  const Emin = (Cmin !== '' && !isNaN(cminV) && cminV > 0) ? n * 3.6 * cminV / 1000 : E;
+  const Emax = (Cmax !== '' && !isNaN(cmaxV) && cmaxV > 0) ? n * 3.6 * cmaxV / 1000 : E;
+  const Lmax = (lsLmax !== '—' && !isNaN(lmaxV) && lmaxV > 0) ? lmaxV : l;
+  const Lmin = (lsLmin !== '—' && !isNaN(lminV) && lminV > 0) ? lminV : l;
 
-  const T    = rd1(tNom);
-  const minC = Math.min(...cands);
-  const maxC = Math.max(...cands);
+  const Tmin = rd1(Emin / Lmax * 60);
+  const Tmax = rd1(Emax / Lmin * 60);
 
   return {
     T:    String(T),
-    Tmin: minC < T ? String(minC) : '',
-    Tmax: maxC > T ? String(maxC) : '',
+    Tmin: Tmin < T ? String(Tmin) : '',
+    Tmax: Tmax > T ? String(Tmax) : '',
   };
 }
 
@@ -1409,25 +1400,22 @@ updateReportTime();
 
 // ─────────────────────────────────────────────
 // DfCost page — dc-prefixed IDs; independent state
-// Mode A (TIME first → E,T→L): compute system load
-// Mode B (LOAD first → E,L→T): compute run time
+// E(TL) path: given T (run time) and L (load), compute required energy E
+// E = L × T / 60    Emin = Lmax × Tmax / 60
 // ─────────────────────────────────────────────
 
-// ── DC Mode state ──
-let dcMode = null;  // null | 'time' | 'load'
+// ── DC computed energy state (updated by dcUpdateEnergyCard) ──
+let dcComputedE    = NaN;
+let dcComputedEmin = NaN;
 
-// ── DC PACK elements and state ──
+// ── DC PACK elements and state (resolve card: N and C only) ──
 const dcInputN    = document.getElementById('dc-input-N');
 const dcInputC    = document.getElementById('dc-input-C');
-const dcInputCmin = document.getElementById('dc-input-Cmin');
-const dcInputCmax = document.getElementById('dc-input-Cmax');
 const dcPackErrorEl = document.getElementById('dc-pack-error');
-const dcPackErrors = { N: '', C: '', Cmin: '', Cmax: '' };
-const dcPackFieldUserSet = { Cmin: false, Cmax: false };
+const dcPackErrors  = { N: '', C: '' };
 
 function showDcPackError() {
-  dcPackErrorEl.textContent =
-    dcPackErrors.N || dcPackErrors.C || dcPackErrors.Cmin || dcPackErrors.Cmax || '';
+  dcPackErrorEl.textContent = dcPackErrors.N || dcPackErrors.C || '';
 }
 
 function setDcFieldState(inputEl, fieldKey, message, isError = false) {
@@ -1439,36 +1427,6 @@ function setDcFieldState(inputEl, fieldKey, message, isError = false) {
     dcPackErrors[fieldKey] = '';
   }
   showDcPackError();
-}
-
-function tryAutoPopulateDcPack() {
-  const cRaw   = dcInputC.value.trim();
-  const cValid = cRaw !== '' && dcPackErrors.C === '';
-
-  function autoSet(el, fieldKey) {
-    el.value = cRaw;
-    el.dataset.lastValid = cRaw;
-    el.classList.add('auto-populated');
-    setDcFieldState(el, fieldKey, '');
-  }
-
-  function autoClear(el, fieldKey) {
-    if (el.classList.contains('auto-populated')) {
-      el.value = '';
-      el.dataset.lastValid = '';
-      el.classList.remove('auto-populated');
-      setDcFieldState(el, fieldKey, '');
-    }
-  }
-
-  if (!dcPackFieldUserSet.Cmin) {
-    if (cValid) autoSet(dcInputCmin, 'Cmin');
-    else        autoClear(dcInputCmin, 'Cmin');
-  }
-  if (!dcPackFieldUserSet.Cmax) {
-    if (cValid) autoSet(dcInputCmax, 'Cmax');
-    else        autoClear(dcInputCmax, 'Cmax');
-  }
 }
 
 function validateDcN() {
@@ -1487,136 +1445,31 @@ function validateDcN() {
 
 function validateDcC() {
   const raw = dcInputC.value.trim();
-  if (raw === '') {
-    setDcFieldState(dcInputC, 'C', '');
-    validateDcCmin(); validateDcCmax();
-    return true;
-  }
+  if (raw === '') { setDcFieldState(dcInputC, 'C', ''); return true; }
   const val = Number(raw);
   if (isNaN(val) || !Number.isInteger(val)) {
-    setDcFieldState(dcInputC, 'C', 'Nominal must be a whole number', true);
-    validateDcCmin(); validateDcCmax();
-    return false;
+    setDcFieldState(dcInputC, 'C', 'Nominal must be a whole number', true); return false;
   }
   if (val < 100 || val > 8000) {
-    setDcFieldState(dcInputC, 'C', 'Nominal must be 100 – 8000 mAh', true);
-    validateDcCmin(); validateDcCmax();
-    return false;
+    setDcFieldState(dcInputC, 'C', 'Nominal must be 100 – 8000 mAh', true); return false;
   }
   setDcFieldState(dcInputC, 'C', '');
-  validateDcCmin(); validateDcCmax();
   return true;
 }
 
-function validateDcCmin() {
-  const raw = dcInputCmin.value.trim();
-  if (raw === '') { setDcFieldState(dcInputCmin, 'Cmin', ''); return true; }
-  const val = Number(raw);
-  if (isNaN(val) || !Number.isInteger(val)) {
-    setDcFieldState(dcInputCmin, 'Cmin', 'Min must be a whole number', true); return false;
-  }
-  const cRaw = dcInputC.value.trim();
-  if (cRaw !== '') {
-    const cVal = Number(cRaw);
-    if (Number.isInteger(cVal) && cVal >= 100 && cVal <= 8000) {
-      const cminFloor = Math.ceil(cVal * 0.5);
-      if (val < cminFloor) {
-        setDcFieldState(dcInputCmin, 'Cmin', `Min must be ≥ ${cminFloor} mAh`, true); return false;
-      }
-      if (val > cVal) {
-        setDcFieldState(dcInputCmin, 'Cmin', `Min must be ≤ ${cVal} mAh (≤ Nominal)`, true); return false;
-      }
-    }
-  }
-  setDcFieldState(dcInputCmin, 'Cmin', '');
-  return true;
-}
-
-function validateDcCmax() {
-  const raw = dcInputCmax.value.trim();
-  if (raw === '') { setDcFieldState(dcInputCmax, 'Cmax', ''); return true; }
-  const val = Number(raw);
-  if (isNaN(val) || !Number.isInteger(val)) {
-    setDcFieldState(dcInputCmax, 'Cmax', 'Max must be a whole number', true); return false;
-  }
-  const cRaw = dcInputC.value.trim();
-  if (cRaw !== '') {
-    const cVal = Number(cRaw);
-    if (Number.isInteger(cVal) && cVal >= 100 && cVal <= 8000) {
-      const cmaxCeil = Math.floor(cVal * 1.15);
-      if (val > cmaxCeil) {
-        setDcFieldState(dcInputCmax, 'Cmax', `Max must be ≤ ${cmaxCeil} mAh`, true); return false;
-      }
-      if (val < cVal) {
-        setDcFieldState(dcInputCmax, 'Cmax', `Max must be ≥ ${cVal} mAh (≥ Nominal)`, true); return false;
-      }
-    }
-  }
-  setDcFieldState(dcInputCmax, 'Cmax', '');
-  return true;
-}
-
-// Seed lastValid from defaults
-dcInputN.dataset.lastValid    = dcInputN.value;
-dcInputC.dataset.lastValid    = dcInputC.value;
-dcInputCmin.dataset.lastValid = dcInputCmin.value;
-dcInputCmax.dataset.lastValid = dcInputCmax.value;
+// Seed lastValid
+dcInputN.dataset.lastValid = dcInputN.value;
+dcInputC.dataset.lastValid = dcInputC.value;
 
 dcInputN.addEventListener('blur', () => {
   blurValidate(dcInputN, validateDcN);
-  dcUpdateOutput();
+  dcUpdateResolveCard();
 });
 
 dcInputC.addEventListener('blur', () => {
   blurValidate(dcInputC, validateDcC);
-  tryAutoPopulateDcPack();
-  dcUpdateOutput();
+  dcUpdateResolveCard();
 });
-
-dcInputCmin.addEventListener('input', () => {
-  if (dcInputCmin.value.trim() !== '') {
-    dcPackFieldUserSet.Cmin = true;
-    dcInputCmin.classList.remove('auto-populated');
-  } else {
-    dcPackFieldUserSet.Cmin = false;
-  }
-});
-dcInputCmin.addEventListener('blur', () => {
-  if (validateDcCmin()) {
-    dcInputCmin.dataset.lastValid = dcInputCmin.value;
-    if (dcInputCmin.value.trim() === '') dcPackFieldUserSet.Cmin = false;
-  } else {
-    dcInputCmin.value = dcInputCmin.dataset.lastValid ?? '';
-    if (dcInputCmin.value.trim() === '') dcPackFieldUserSet.Cmin = false;
-    validateDcCmin();
-  }
-  tryAutoPopulateDcPack();
-  dcUpdateOutput();
-});
-
-dcInputCmax.addEventListener('input', () => {
-  if (dcInputCmax.value.trim() !== '') {
-    dcPackFieldUserSet.Cmax = true;
-    dcInputCmax.classList.remove('auto-populated');
-  } else {
-    dcPackFieldUserSet.Cmax = false;
-  }
-});
-dcInputCmax.addEventListener('blur', () => {
-  if (validateDcCmax()) {
-    dcInputCmax.dataset.lastValid = dcInputCmax.value;
-    if (dcInputCmax.value.trim() === '') dcPackFieldUserSet.Cmax = false;
-  } else {
-    dcInputCmax.value = dcInputCmax.dataset.lastValid ?? '';
-    if (dcInputCmax.value.trim() === '') dcPackFieldUserSet.Cmax = false;
-    validateDcCmax();
-  }
-  tryAutoPopulateDcPack();
-  dcUpdateOutput();
-});
-
-// Initial auto-populate — seeds Cmin/Cmax from the default C value (2000 mAh)
-tryAutoPopulateDcPack();
 
 // ─────────────────────────────────────────────
 // DC TIME — inputs and validation
@@ -1701,8 +1554,7 @@ dcInputT.dataset.lastValid    = '';
 dcInputTmin.dataset.lastValid = '';
 dcInputTmax.dataset.lastValid = '';
 
-// Helper: blur handler for all three DC TIME fields
-// Reverts on invalid, then detects mode on first valid entry.
+// Helper: blur handler for all three DC TIME fields — reverts on invalid, then refreshes energy.
 function dcBlurTimeField(el, validateFn) {
   if (validateFn()) {
     el.dataset.lastValid = el.value;
@@ -1710,8 +1562,7 @@ function dcBlurTimeField(el, validateFn) {
     el.value = el.dataset.lastValid ?? '';
     validateFn();
   }
-  if (dcMode === null && el.value.trim() !== '') dcSetMode('time');
-  dcUpdateOutput();
+  dcUpdateEnergyCard();
 }
 
 dcInputT.addEventListener('blur',    () => dcBlurTimeField(dcInputT,    validateDcT));
@@ -1898,7 +1749,7 @@ function dcUpdateDcTotalRow() {
       summaryEl.textContent = '—';
     }
   });
-  dcUpdateOutput();
+  dcUpdateEnergyCard();
 }
 
 function dcAttachLoadListeners(i) {
@@ -1922,7 +1773,6 @@ function dcAttachLoadListeners(i) {
       if (lEl.value.trim() === '') us.L = false;
       validateDcL(i);
     }
-    if (dcMode === null && lEl.value.trim() !== '') dcSetMode('load');
     dcTryAutoPopulateAll(i);
     dcUpdateDcTotalRow();
   });
@@ -1940,7 +1790,6 @@ function dcAttachLoadListeners(i) {
       if (lminEl.value.trim() === '') us.Lmin = false;
       validateDcLmin(i);
     }
-    if (dcMode === null && lminEl.value.trim() !== '') dcSetMode('load');
     dcTryAutoPopulateAll(i);
     dcUpdateDcTotalRow();
   });
@@ -1958,7 +1807,6 @@ function dcAttachLoadListeners(i) {
       if (lmaxEl.value.trim() === '') us.Lmax = false;
       validateDcLmax(i);
     }
-    if (dcMode === null && lmaxEl.value.trim() !== '') dcSetMode('load');
     dcTryAutoPopulateAll(i);
     dcUpdateDcTotalRow();
   });
@@ -2034,261 +1882,175 @@ function dcRemoveLastLoadCard() {
 }
 
 // ─────────────────────────────────────────────
-// DC Mode control
+// DC energy computation and display (v1.1 E(TL) path)
 // ─────────────────────────────────────────────
 
-// dcSetMode: locks mode on first valid entry; shows/hides the appropriate sections.
-function dcSetMode(mode) {
-  if (dcMode !== null) return;  // already locked
-  dcMode = mode;
-  if (mode === 'time') {
-    // Mode A: hide LOAD group, show REPORT LOAD
-    document.getElementById('dc-load-group').style.display       = 'none';
-    document.getElementById('dc-report-load-card').style.display = '';
-    dcUpdateReportLoad();
+// Compute {E, Emin} from TIME (T, Tmax) and LOAD (L, Lmax).
+// E    = L × T / 60           (nominal required energy, Wh)
+// Emin = Lmax × Tmax / 60     (minimum pack energy for worst case, Wh)
+// Returns {E: NaN, Emin: NaN} when T or L are not yet entered.
+function dcComputeEnergyValues() {
+  const T   = parseFloat(dcInputT.value.trim());
+  const lsL = document.getElementById('dc-ls-L').textContent.trim();
+  const L   = parseFloat(lsL);
+  if (isNaN(T) || T <= 0 || isNaN(L) || L <= 0) return { E: NaN, Emin: NaN };
+
+  const tmaxRaw = dcInputTmax.value.trim();
+  const tmaxV   = parseFloat(tmaxRaw);
+  const Tmax    = (tmaxRaw !== '' && !isNaN(tmaxV) && tmaxV >= T) ? tmaxV : T;
+
+  const lsLmax = document.getElementById('dc-ls-Lmax').textContent.trim();
+  const LmaxV  = parseFloat(lsLmax);
+  const Lmax   = (lsLmax !== '—' && !isNaN(LmaxV) && LmaxV > 0) ? LmaxV : L;
+
+  const rd2  = v => Math.round(v * 100) / 100;
+  const E    = rd2(L * T / 60);
+  const Emin = rd2(Lmax * Tmax / 60);
+  return { E, Emin };
+}
+
+// Render the dc-energy-card.  Also reveals dc-resolve-card and calls dcUpdateResolveCard.
+// Called on any TIME or LOAD change.
+function dcUpdateEnergyCard() {
+  const energyCard  = document.getElementById('dc-energy-card');
+  const resolveCard = document.getElementById('dc-resolve-card');
+  const wrap        = document.getElementById('dc-energy-wrap');
+
+  const { E, Emin } = dcComputeEnergyValues();
+  dcComputedE    = E;
+  dcComputedEmin = Emin;
+
+  if (isNaN(E)) {
+    energyCard.style.display  = 'none';
+    resolveCard.style.display = 'none';
+    return;
+  }
+
+  energyCard.style.display  = '';
+  resolveCard.style.display = '';
+
+  const showEmin = Math.abs(Emin - E) > 0.005;
+  let html = '<div class="rpt-heading">Required Energy</div>';
+  html += '<table class="rpt-table"><tbody>';
+  if (showEmin) {
+    html += '<tr class="rpt-col-hdr">'
+          + '<td class="rpt-td-lbl"></td>'
+          + '<td class="rpt-td-num">Nom</td>'
+          + '<td class="rpt-td-num">Worst</td>'
+          + '<td class="rpt-td-unit"></td></tr>';
+    html += '<tr class="rpt-time-row">'
+          + '<td class="rpt-td-lbl">Energy</td>'
+          + `<td class="rpt-td-num">${E}</td>`
+          + `<td class="rpt-td-num">${Emin}</td>`
+          + '<td class="rpt-td-unit">Wh</td></tr>';
   } else {
-    // Mode B: hide TIME card, show REPORT TIME
-    document.getElementById('dc-time-card').style.display        = 'none';
-    document.getElementById('dc-report-time-card').style.display = '';
-    dcUpdateReportTime();
+    html += '<tr class="rpt-time-row">'
+          + '<td class="rpt-td-lbl">Energy</td>'
+          + `<td class="rpt-td-num">${E}</td>`
+          + '<td class="rpt-td-num"></td>'
+          + '<td class="rpt-td-unit">Wh</td></tr>';
   }
+  html += '</tbody></table>';
+  wrap.innerHTML = html;
+
+  dcUpdateResolveCard();
 }
 
-// dcUpdateOutput: called on any PACK/TIME/LOAD change; refreshes the active report.
-function dcUpdateOutput() {
-  if      (dcMode === 'time') dcUpdateReportLoad();
-  else if (dcMode === 'load') dcUpdateReportTime();
-}
-
-// ─────────────────────────────────────────────
-// DC calculation functions
-// ─────────────────────────────────────────────
-
-// ── Calculate system load (Mode A: E,T → L) ──
-// E = N × 3.6 × C / 1000  (Wh)
-// L    = E_nom / T_nom × 60
-// Lmin = E_min / T_max × 60  (min cap + max time → minimum load)
-// Lmax = E_max / T_min × 60  (max cap + min time → maximum load)
-function calcLoad(N, C, Cmin, Cmax, T, Tmin, Tmax) {
-  const n = parseInt(N, 10);
-  const c = parseFloat(C);
-  const t = parseFloat(T);
-
-  if (!Number.isInteger(n) || n < 1 || n > 8) return { L: '', Lmin: '', Lmax: '' };
-  if (isNaN(c) || c < 100 || c > 8000)        return { L: '', Lmin: '', Lmax: '' };
-  if (isNaN(t) || t <= 0)                      return { L: '', Lmin: '', Lmax: '' };
-
-  const rd1   = v => Math.round(v * 10) / 10;
-  const E_nom = n * 3.6 * c / 1000;
-  const L_nom = rd1(E_nom * 60 / t);
-
-  const cminV = parseFloat(Cmin);
-  const tmaxV = parseFloat(Tmax);
-  const E_min = (Cmin !== '' && !isNaN(cminV) && cminV > 0) ? n * 3.6 * cminV / 1000 : E_nom;
-  const T_max = (Tmax !== '' && !isNaN(tmaxV) && tmaxV > t) ? tmaxV : t;
-  const L_min = rd1(E_min * 60 / T_max);
-
-  const cmaxV = parseFloat(Cmax);
-  const tminV = parseFloat(Tmin);
-  const E_max = (Cmax !== '' && !isNaN(cmaxV) && cmaxV > 0) ? n * 3.6 * cmaxV / 1000 : E_nom;
-  const T_min = (Tmin !== '' && !isNaN(tminV) && tminV > 0 && tminV < t) ? tminV : t;
-  const L_max = rd1(E_max * 60 / T_min);
-
-  return {
-    L:    String(L_nom),
-    Lmin: L_min < L_nom ? String(L_min) : '',
-    Lmax: L_max > L_nom ? String(L_max) : '',
-  };
-}
-
-// ─────────────────────────────────────────────
-// DC report render functions
-// ─────────────────────────────────────────────
-
-// ── Build and display DC REPORT LOAD card (Mode A) ──
-// Rows: Cells | Cell Cap | [gap] | Run Time | Nom/Min/Max header | Load (bold)
-function dcUpdateReportLoad() {
-  const wrap = document.getElementById('dc-report-load-wrap');
+// Render the pack sizing result inside dc-resolve-card.
+// If N is given → compute required cell capacity C = E × 1000 / (N × 3.6).
+// If C is given (and N empty/invalid) → compute minimum cell count N = ⌈E × 1000 / (3.6 × C)⌉.
+// Shows both nominal (E) and worst-case (Emin) results when they differ.
+function dcUpdateResolveCard() {
+  const wrap = document.getElementById('dc-resolve-wrap');
   if (!wrap) return;
 
-  function esc(s) {
-    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const E    = dcComputedE;
+  const Emin = dcComputedEmin;
+  if (isNaN(E)) { wrap.innerHTML = ''; return; }
+
+  const N   = parseInt(dcInputN.value.trim(), 10);
+  const C   = parseFloat(dcInputC.value.trim());
+  const nOk = dcPackErrors.N === '' && Number.isInteger(N) && N >= 1 && N <= 8;
+  const cOk = dcPackErrors.C === '' && !isNaN(C) && C >= 100 && C <= 8000;
+
+  if (!nOk && !cOk) { wrap.innerHTML = ''; return; }
+
+  const rd0      = v => Math.round(v);
+  const showEmin = Math.abs(Emin - E) > 0.005;
+  let html = '<table class="rpt-table"><tbody>';
+
+  if (nOk) {
+    // User provided N → compute required cell capacity
+    const C_nom = rd0(E    * 1000 / (N * 3.6));
+    const C_wc  = rd0(Emin * 1000 / (N * 3.6));
+    if (showEmin) {
+      html += '<tr class="rpt-col-hdr">'
+            + '<td class="rpt-td-lbl"></td>'
+            + '<td class="rpt-td-num">Nom</td>'
+            + '<td class="rpt-td-num">Worst</td>'
+            + '<td class="rpt-td-unit"></td></tr>';
+      html += '<tr class="rpt-time-row">'
+            + '<td class="rpt-td-lbl">Cell Cap</td>'
+            + `<td class="rpt-td-num">${C_nom}</td>`
+            + `<td class="rpt-td-num">${C_wc}</td>`
+            + '<td class="rpt-td-unit">mAh</td></tr>';
+    } else {
+      html += '<tr class="rpt-time-row">'
+            + '<td class="rpt-td-lbl">Cell Cap</td>'
+            + `<td class="rpt-td-num">${C_nom}</td>`
+            + '<td class="rpt-td-num"></td>'
+            + '<td class="rpt-td-unit">mAh</td></tr>';
+    }
+  } else {
+    // User provided C → compute required cell count (rounded up)
+    const N_nom = Math.ceil(E    * 1000 / (3.6 * C));
+    const N_wc  = Math.ceil(Emin * 1000 / (3.6 * C));
+    if (showEmin) {
+      html += '<tr class="rpt-col-hdr">'
+            + '<td class="rpt-td-lbl"></td>'
+            + '<td class="rpt-td-num">Nom</td>'
+            + '<td class="rpt-td-num">Worst</td>'
+            + '<td class="rpt-td-unit"></td></tr>';
+      html += '<tr class="rpt-time-row">'
+            + '<td class="rpt-td-lbl">Cells</td>'
+            + `<td class="rpt-td-num">${N_nom}</td>`
+            + `<td class="rpt-td-num">${N_wc}</td>`
+            + '<td class="rpt-td-unit"></td></tr>';
+    } else {
+      html += '<tr class="rpt-time-row">'
+            + '<td class="rpt-td-lbl">Cells</td>'
+            + `<td class="rpt-td-num">${N_nom}</td>`
+            + '<td class="rpt-td-num"></td>'
+            + '<td class="rpt-td-unit"></td></tr>';
+    }
   }
-  function v(raw) { return esc(raw.trim()); }
-
-  const N    = dcInputN    ? dcInputN.value.trim()    : '';
-  const C    = dcInputC    ? dcInputC.value.trim()    : '';
-  const Cmin = dcInputCmin ? dcInputCmin.value.trim() : '';
-  const Cmax = dcInputCmax ? dcInputCmax.value.trim() : '';
-  const T    = dcInputT    ? dcInputT.value.trim()    : '';
-  const Tmin = dcInputTmin ? dcInputTmin.value.trim() : '';
-  const Tmax = dcInputTmax ? dcInputTmax.value.trim() : '';
-
-  const { L, Lmin, Lmax } = calcLoad(N, C, Cmin, Cmax, T, Tmin, Tmax);
-  const nDisplay = N !== '' ? esc(N) : '—';
-
-  wrap.innerHTML = `
-    <div class="rpt-heading">System Load Calculation</div>
-    <table class="rpt-table">
-      <tbody>
-        <tr>
-          <td class="rpt-td-lbl">Cells</td>
-          <td class="rpt-td-num">${nDisplay}</td>
-          <td class="rpt-td-num"></td>
-          <td class="rpt-td-num"></td>
-          <td class="rpt-td-unit"></td>
-        </tr>
-        <tr>
-          <td class="rpt-td-lbl">Cell Cap</td>
-          <td class="rpt-td-num">${v(fmtCap(C))}</td>
-          <td class="rpt-td-num">${v(fmtCap(Cmin))}</td>
-          <td class="rpt-td-num">${v(fmtCap(Cmax))}</td>
-          <td class="rpt-td-unit">mAh</td>
-        </tr>
-        <tr class="rpt-gap"><td colspan="5"></td></tr>
-        <tr>
-          <td class="rpt-td-lbl">Run Time</td>
-          <td class="rpt-td-num">${v(fmtTime(T))}</td>
-          <td class="rpt-td-num">${v(fmtTime(Tmin))}</td>
-          <td class="rpt-td-num">${v(fmtTime(Tmax))}</td>
-          <td class="rpt-td-unit">Min</td>
-        </tr>
-        <tr class="rpt-col-hdr">
-          <td class="rpt-td-lbl"></td>
-          <td class="rpt-td-num">Nom</td>
-          <td class="rpt-td-num">Min</td>
-          <td class="rpt-td-num">Max</td>
-          <td class="rpt-td-unit"></td>
-        </tr>
-        <tr class="rpt-time-row">
-          <td class="rpt-td-lbl">Load</td>
-          <td class="rpt-td-num">${v(fmtLoad(L))}</td>
-          <td class="rpt-td-num">${v(fmtLoad(Lmin))}</td>
-          <td class="rpt-td-num">${v(fmtLoad(Lmax))}</td>
-          <td class="rpt-td-unit">W</td>
-        </tr>
-      </tbody>
-    </table>`;
-}
-
-// ── Build and display DC REPORT TIME card (Mode B) ──
-// Same structure as Calc REPORT TIME but using dc-prefixed elements.
-function dcUpdateReportTime() {
-  const wrap = document.getElementById('dc-report-time-wrap');
-  if (!wrap) return;
-
-  function esc(s) {
-    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-  }
-  function v(raw) { return esc(raw.trim()); }
-
-  const N    = dcInputN    ? dcInputN.value.trim()    : '';
-  const C    = dcInputC    ? dcInputC.value.trim()    : '';
-  const Cmin = dcInputCmin ? dcInputCmin.value.trim() : '';
-  const Cmax = dcInputCmax ? dcInputCmax.value.trim() : '';
-
-  const lsLEl    = document.getElementById('dc-ls-L');
-  const lsLminEl = document.getElementById('dc-ls-Lmin');
-  const lsLmaxEl = document.getElementById('dc-ls-Lmax');
-  const lsL    = lsLEl    ? lsLEl.textContent.trim()    : '—';
-  const lsLmin = lsLminEl ? lsLminEl.textContent.trim() : '—';
-  const lsLmax = lsLmaxEl ? lsLmaxEl.textContent.trim() : '—';
-
-  const { T, Tmin, Tmax } = calcRunTime(N, C, Cmin, Cmax, lsL, lsLmin, lsLmax);
-  const nDisplay = N !== '' ? esc(N) : '—';
-
-  let lxRows = '';
-  for (let i = 0; i < dcLoadCount; i++) {
-    const lEl    = document.getElementById(`dc-input-L${i}`);
-    const lminEl = document.getElementById(`dc-input-Lmin${i}`);
-    const lmaxEl = document.getElementById(`dc-input-Lmax${i}`);
-    const lv    = lEl    ? lEl.value.trim()    : '';
-    const lminv = lminEl ? lminEl.value.trim() : '';
-    const lmaxv = lmaxEl ? lmaxEl.value.trim() : '';
-    lxRows += `<tr>
-          <td class="rpt-td-lbl rpt-lx">L${i}</td>
-          <td class="rpt-td-num rpt-lx">${v(fmtLoad(lv))}</td>
-          <td class="rpt-td-num rpt-lx">${v(fmtLoad(lminv))}</td>
-          <td class="rpt-td-num rpt-lx">${v(fmtLoad(lmaxv))}</td>
-          <td class="rpt-td-unit rpt-lx">W</td>
-        </tr>`;
-  }
-
-  wrap.innerHTML = `
-    <div class="rpt-heading">Battery Run Time Calculator</div>
-    <table class="rpt-table">
-      <tbody>
-        <tr>
-          <td class="rpt-td-lbl">Cells</td>
-          <td class="rpt-td-num">${nDisplay}</td>
-          <td class="rpt-td-num"></td>
-          <td class="rpt-td-num"></td>
-          <td class="rpt-td-unit"></td>
-        </tr>
-        <tr>
-          <td class="rpt-td-lbl">Cell Cap</td>
-          <td class="rpt-td-num">${v(fmtCap(C))}</td>
-          <td class="rpt-td-num">${v(fmtCap(Cmin))}</td>
-          <td class="rpt-td-num">${v(fmtCap(Cmax))}</td>
-          <td class="rpt-td-unit">mAh</td>
-        </tr>
-        <tr class="rpt-gap"><td colspan="5"></td></tr>
-        <tr>
-          <td class="rpt-td-lbl">Load</td>
-          <td class="rpt-td-num">${v(fmtLoad(lsL))}</td>
-          <td class="rpt-td-num">${v(fmtLoad(lsLmin))}</td>
-          <td class="rpt-td-num">${v(fmtLoad(lsLmax))}</td>
-          <td class="rpt-td-unit">W</td>
-        </tr>
-        ${lxRows}
-        <tr class="rpt-col-hdr">
-          <td class="rpt-td-lbl"></td>
-          <td class="rpt-td-num">Nom</td>
-          <td class="rpt-td-num">Min</td>
-          <td class="rpt-td-num">Max</td>
-          <td class="rpt-td-unit"></td>
-        </tr>
-        <tr class="rpt-time-row">
-          <td class="rpt-td-lbl">Run Time</td>
-          <td class="rpt-td-num">${v(fmtTime(T))}</td>
-          <td class="rpt-td-num">${v(fmtTime(Tmin))}</td>
-          <td class="rpt-td-num">${v(fmtTime(Tmax))}</td>
-          <td class="rpt-td-unit">Min</td>
-        </tr>
-      </tbody>
-    </table>`;
+  html += '</tbody></table>';
+  wrap.innerHTML = html;
 }
 
 // ─────────────────────────────────────────────
 // DC page reset — called from resetPage('page-cost')
 // ─────────────────────────────────────────────
 function dcResetPage() {
-  dcMode = null;
+  // Reset stored energy values
+  dcComputedE    = NaN;
+  dcComputedEmin = NaN;
 
-  // Restore section visibility
-  document.getElementById('dc-time-card').style.display        = '';
-  document.getElementById('dc-load-group').style.display       = '';
-  document.getElementById('dc-report-load-card').style.display = 'none';
-  document.getElementById('dc-report-time-card').style.display = 'none';
+  // Hide result cards; clear their content
+  const energyCard  = document.getElementById('dc-energy-card');
+  const resolveCard = document.getElementById('dc-resolve-card');
+  if (energyCard)  energyCard.style.display  = 'none';
+  if (resolveCard) resolveCard.style.display = 'none';
+  const energyWrap  = document.getElementById('dc-energy-wrap');
+  const resolveWrap = document.getElementById('dc-resolve-wrap');
+  if (energyWrap)  energyWrap.innerHTML  = '';
+  if (resolveWrap) resolveWrap.innerHTML = '';
 
-  // Reset PACK
-  dcInputN.value = '7';   dcInputN.dataset.lastValid = '7';
+  // Reset resolve PACK inputs (N and C)
+  dcInputN.value = ''; dcInputN.dataset.lastValid = '';
   setDcFieldState(dcInputN, 'N', '');
-
-  dcInputC.value = '2000'; dcInputC.dataset.lastValid = '2000';
+  dcInputC.value = ''; dcInputC.dataset.lastValid = '';
   setDcFieldState(dcInputC, 'C', '');
-
-  dcInputCmin.value = '';  dcInputCmin.dataset.lastValid = '';
-  dcInputCmin.classList.remove('auto-populated');
-  dcPackFieldUserSet.Cmin = false;
-  setDcFieldState(dcInputCmin, 'Cmin', '');
-
-  dcInputCmax.value = '';  dcInputCmax.dataset.lastValid = '';
-  dcInputCmax.classList.remove('auto-populated');
-  dcPackFieldUserSet.Cmax = false;
-  setDcFieldState(dcInputCmax, 'Cmax', '');
-
-  tryAutoPopulateDcPack();
 
   // Reset TIME
   [dcInputT, dcInputTmin, dcInputTmax].forEach(el => {
@@ -2310,68 +2072,7 @@ function dcResetPage() {
   dcAddLoadCard();   // adds fresh L(0) and resets summary totals
 }
 
-// ── DC copy buttons ──────────────────────────────────────────────────────────
-// Mode A: REPORT LOAD card copy button
-(function () {
-  const copyBtn    = document.getElementById('dc-rpt-load-copy-btn');
-  const reportCard = document.getElementById('dc-report-load-card');
-  if (!copyBtn || !reportCard) return;
-
-  copyBtn.addEventListener('click', () => {
-    const wrap = document.getElementById('dc-report-load-wrap');
-    if (!wrap) return;
-    const headingEl = wrap.querySelector('.rpt-heading');
-    const lines = headingEl ? [headingEl.textContent.trim()] : [];
-    wrap.querySelectorAll('.rpt-table tbody tr').forEach(row => {
-      if (row.classList.contains('rpt-gap')) { lines.push(''); return; }
-      const c    = Array.from(row.querySelectorAll('td'));
-      const lbl  = (c[0] ? c[0].textContent.trim() : '').padEnd(10);
-      const nom  = (c[1] ? c[1].textContent.trim() : '').padStart(7);
-      const min  = (c[2] ? c[2].textContent.trim() : '').padStart(7);
-      const max  = (c[3] ? c[3].textContent.trim() : '').padStart(7);
-      const unit = c[4] ? c[4].textContent.trim() : '';
-      lines.push(lbl + nom + min + max + (unit ? '  ' + unit : ''));
-    });
-    navigator.clipboard.writeText(lines.join('\n').trimEnd())
-      .then(() => {
-        reportCard.style.backgroundColor = '#66BB6A';
-        setTimeout(() => { reportCard.style.backgroundColor = ''; }, 250);
-      })
-      .catch(() => {});
-  });
-}());
-
-// Mode B: DC REPORT TIME card copy button
-(function () {
-  const copyBtn    = document.getElementById('dc-rpt-time-copy-btn');
-  const reportCard = document.getElementById('dc-report-time-card');
-  if (!copyBtn || !reportCard) return;
-
-  copyBtn.addEventListener('click', () => {
-    const wrap = document.getElementById('dc-report-time-wrap');
-    if (!wrap) return;
-    const headingEl = wrap.querySelector('.rpt-heading');
-    const lines = headingEl ? [headingEl.textContent.trim()] : [];
-    wrap.querySelectorAll('.rpt-table tbody tr').forEach(row => {
-      if (row.classList.contains('rpt-gap')) { lines.push(''); return; }
-      const c    = Array.from(row.querySelectorAll('td'));
-      const lbl  = (c[0] ? c[0].textContent.trim() : '').padEnd(10);
-      const nom  = (c[1] ? c[1].textContent.trim() : '').padStart(7);
-      const min  = (c[2] ? c[2].textContent.trim() : '').padStart(7);
-      const max  = (c[3] ? c[3].textContent.trim() : '').padStart(7);
-      const unit = c[4] ? c[4].textContent.trim() : '';
-      lines.push(lbl + nom + min + max + (unit ? '  ' + unit : ''));
-    });
-    navigator.clipboard.writeText(lines.join('\n').trimEnd())
-      .then(() => {
-        reportCard.style.backgroundColor = '#66BB6A';
-        setTimeout(() => { reportCard.style.backgroundColor = ''; }, 250);
-      })
-      .catch(() => {});
-  });
-}());
-
-// ── Initialise DfCost: create initial L(0) card (report cards start hidden via HTML) ──
+// ── Initialise DfCost: create initial L(0) card (energy/resolve cards start hidden via HTML) ──
 dcAddLoadCard();
 
 // ─────────────────────────────────────────────
@@ -2426,42 +2127,34 @@ function dtUpdateResult() {
                  && !isNaN(c)           && c >= 100 && c <= 8000;
 
   if (dtMode === 'time') {
-    // ── Path A: E, T → L ──────────────────────────────────────────────────────
+    // ── Path A: E, T → L  (v1.1 L(ET): L = E/T; Lmin = N/A; Lmax = Emin/Tmax) ──
     if (!packValid) { el.textContent = 'solve E, T→L  (enter N and C to compute)'; return; }
     const tNom = parseFloat(inputT.value.trim());
     if (isNaN(tNom) || tNom <= 0) { el.textContent = 'solve E, T→L'; return; }
 
     const Enom = n * 3.6 * c / 1000;
+    const L    = rd1(Enom * 60 / tNom);
 
-    // E-set: add Emin/Emax when Cmin/Cmax are present
-    const eSet = [Enom];
+    // Emin: use Cmin if present and valid; else fall back to Enom
     const cminV = parseFloat(dtInputCmin.value.trim());
-    const cmaxV = parseFloat(dtInputCmax.value.trim());
-    if (!isNaN(cminV) && cminV > 0) eSet.push(n * 3.6 * cminV / 1000);
-    if (!isNaN(cmaxV) && cmaxV > 0) eSet.push(n * 3.6 * cmaxV / 1000);
+    const Emin  = (dtPackErrors.Cmin === '' && !isNaN(cminV) && cminV > 0)
+                  ? n * 3.6 * cminV / 1000 : Enom;
 
-    // T-set: add Tmin/Tmax when present (Tmax is auto-populated read-only)
-    const tSet = [tNom];
-    const tminV = parseFloat(inputTmin.value.trim());
-    const tmaxV = parseFloat(inputTmax.value.trim());
-    if (!isNaN(tminV) && tminV > 0) tSet.push(tminV);
-    if (!isNaN(tmaxV) && tmaxV > 0) tSet.push(tmaxV);
+    // Tmax: use inputTmax if present and valid (it's the auto-computed read-only field)
+    const tmaxRaw = inputTmax.value.trim();
+    const tmaxV   = parseFloat(tmaxRaw);
+    const Tmax    = (tmaxRaw !== '' && tmaxRaw !== '—' && !isNaN(tmaxV) && tmaxV > tNom)
+                    ? tmaxV : tNom;
 
-    // All (E / T) × 60 combinations → pick nominal, min, max
-    const cands = [];
-    for (const e of eSet) for (const t of tSet) cands.push(rd1(e * 60 / t));
+    // v1.1: Lmax = Emin / Tmax × 60  (only show if < L; Lmin = N/A)
+    const Lmax = rd1(Emin * 60 / Tmax);
 
-    const lNom = rd1(Enom * 60 / tNom);
-    const lMin = Math.min(...cands);
-    const lMax = Math.max(...cands);
-
-    let txt = `L = ${lNom} W`;
-    if (lMin < lNom) txt += `   Min ${lMin} W`;
-    if (lMax > lNom) txt += `   Max ${lMax} W`;
+    let txt = `L = ${L} W`;
+    if (Lmax < L) txt += `   Max ${Lmax} W`;
     el.textContent = txt;
 
   } else {
-    // ── Path B: E, L → T ──────────────────────────────────────────────────────
+    // ── Path B: E, L → T  (v1.1 T(EL): T = E/L; Tmin = Emin/Lmax; Tmax = Emax/Lmin) ──
     if (!packValid) { el.textContent = 'solve E, L→T  (enter N and C to compute)'; return; }
 
     const lsL    = document.getElementById('dt-ls-L').textContent.trim();
@@ -2473,31 +2166,24 @@ function dtUpdateResult() {
 
     const Enom = n * 3.6 * c / 1000;
 
-    // E-set
-    const eSet = [Enom];
+    // v1.1: Emin uses Cmin; Emax uses Cmax; Lmax/Lmin from DT load summary
     const cminV = parseFloat(dtInputCmin.value.trim());
     const cmaxV = parseFloat(dtInputCmax.value.trim());
-    if (!isNaN(cminV) && cminV > 0) eSet.push(n * 3.6 * cminV / 1000);
-    if (!isNaN(cmaxV) && cmaxV > 0) eSet.push(n * 3.6 * cmaxV / 1000);
-
-    // L-set from DT load summary spans
-    const lSet = [l];
     const lminV = parseFloat(lsLmin);
     const lmaxV = parseFloat(lsLmax);
-    if (lsLmin !== '—' && !isNaN(lminV) && lminV > 0) lSet.push(lminV);
-    if (lsLmax !== '—' && !isNaN(lmaxV) && lmaxV > 0) lSet.push(lmaxV);
 
-    // All (E / L) × 60 combinations → pick nominal, min, max
-    const cands = [];
-    for (const e of eSet) for (const lv of lSet) cands.push(rd1(e / lv * 60));
+    const Emin = (dtPackErrors.Cmin === '' && !isNaN(cminV) && cminV > 0) ? n * 3.6 * cminV / 1000 : Enom;
+    const Emax = (dtPackErrors.Cmax === '' && !isNaN(cmaxV) && cmaxV > 0) ? n * 3.6 * cmaxV / 1000 : Enom;
+    const Lmax = (lsLmax !== '—' && !isNaN(lmaxV) && lmaxV > 0) ? lmaxV : l;
+    const Lmin = (lsLmin !== '—' && !isNaN(lminV) && lminV > 0) ? lminV : l;
 
-    const tNom = rd1(Enom / l * 60);
-    const tMin = Math.min(...cands);
-    const tMax = Math.max(...cands);
+    const T    = rd1(Enom / l * 60);
+    const Tmin = rd1(Emin / Lmax * 60);
+    const Tmax = rd1(Emax / Lmin * 60);
 
-    let txt = `T = ${tNom} Min`;
-    if (tMin < tNom) txt += `   Min ${tMin} Min`;
-    if (tMax > tNom) txt += `   Max ${tMax} Min`;
+    let txt = `T = ${T} Min`;
+    if (Tmin < T) txt += `   Min ${Tmin} Min`;
+    if (Tmax > T) txt += `   Max ${Tmax} Min`;
     el.textContent = txt;
   }
 }
