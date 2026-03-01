@@ -39,6 +39,35 @@ window.addEventListener('online',  updateTitleStatus);
 window.addEventListener('offline', updateTitleStatus);
 
 // ─────────────────────────────────────────────
+// DEBUG PANEL — live state display (remove before production)
+// ─────────────────────────────────────────────
+const dbg = {
+  T: '—', Tmin: '—', Tmax: '—',
+  L: '—', Lmin: '—', Lmax: '—',
+  E: '—', Emin: '—', Emax: '—',
+  C: '—', Cmin: '—', Cmax: '—',
+  N: '—', NN: '—',
+};
+
+function refreshDebug() {
+  const f = v => (v === '' || v === undefined || v === null) ? '—' : String(v);
+  document.getElementById('dbg-1').textContent =
+    `T: ${f(dbg.T)}  Tmin: ${f(dbg.Tmin)}  Tmax: ${f(dbg.Tmax)}`;
+  document.getElementById('dbg-2').textContent =
+    `L: ${f(dbg.L)}  Lmin: ${f(dbg.Lmin)}  Lmax: ${f(dbg.Lmax)}`;
+  document.getElementById('dbg-3').textContent =
+    `E: ${f(dbg.E)}  Emin: ${f(dbg.Emin)}  Emax: ${f(dbg.Emax)}`;
+  document.getElementById('dbg-4').textContent =
+    `C: ${f(dbg.C)}  Cmin: ${f(dbg.Cmin)}  Cmax: ${f(dbg.Cmax)}`;
+  document.getElementById('dbg-5').textContent =
+    `N: ${f(dbg.N)}  NN: ${f(dbg.NN)}`;
+}
+
+function dbgClear() {
+  Object.keys(dbg).forEach(k => { dbg[k] = '—'; });
+}
+
+// ─────────────────────────────────────────────
 // PACK Card — inputs and validation
 // ─────────────────────────────────────────────
 
@@ -548,6 +577,8 @@ function resetPage(pageId) {
   if (pageId === 'page-time') { dtResetPage(); return; }
   if (pageId === 'page-cost') { dcResetPage(); return; }
   if (pageId !== 'page-calc') return;
+
+  dbgClear(); refreshDebug();   // clear debug panel on Calc reset
 
   // ── PACK: restore defaults (N = 7, C = 2000; Cmin/Cmax cleared for auto-seed) ──
   inputN.value             = '7';
@@ -1336,6 +1367,19 @@ function updateReportTime() {
         </tr>
       </tbody>
     </table>`;
+
+  // ── Debug panel update (Calc screen) ──
+  const nNum = parseFloat(N), cNum = parseFloat(C);
+  const cminNum = parseFloat(Cmin), cmaxNum = parseFloat(Cmax);
+  const rd2c = x => Math.round(x * 100) / 100;
+  dbg.T    = T;    dbg.Tmin = Tmin; dbg.Tmax = Tmax;
+  dbg.L    = lsL;  dbg.Lmin = lsLmin; dbg.Lmax = lsLmax;
+  dbg.E    = (!isNaN(nNum) && !isNaN(cNum))    ? String(rd2c(nNum * 3.6 * cNum    / 1000)) : '—';
+  dbg.Emin = (!isNaN(nNum) && !isNaN(cminNum)) ? String(rd2c(nNum * 3.6 * cminNum / 1000)) : '—';
+  dbg.Emax = (!isNaN(nNum) && !isNaN(cmaxNum)) ? String(rd2c(nNum * 3.6 * cmaxNum / 1000)) : '—';
+  dbg.C    = C;    dbg.Cmin = Cmin; dbg.Cmax = Cmax;
+  dbg.N    = N;    dbg.NN   = '—';
+  refreshDebug();
 }
 
 // ── Footer timestamp ─────────────────────────
@@ -1949,6 +1993,18 @@ function dcUpdateEnergyCard() {
   html += '</tbody></table>';
   wrap.innerHTML = html;
 
+  // ── Debug panel update (DfCost energy values) ──
+  dbg.T    = dcInputT.value.trim();
+  dbg.Tmin = '—';
+  dbg.Tmax = dcInputTmax.value.trim();
+  dbg.L    = document.getElementById('dc-ls-L').textContent.trim();
+  dbg.Lmin = '—';
+  dbg.Lmax = document.getElementById('dc-ls-Lmax').textContent.trim();
+  dbg.E    = isNaN(E)    ? '—' : String(E);
+  dbg.Emin = '—';
+  dbg.Emax = isNaN(Emax) ? '—' : String(Emax);
+  refreshDebug();
+
   dcUpdateResolveCard();
 }
 
@@ -2022,12 +2078,30 @@ function dcUpdateResolveCard() {
   }
   html += '</tbody></table>';
   wrap.innerHTML = html;
+
+  // ── Debug panel update (DfCost N/C resolve) ──
+  dbg.C    = dcInputC.value.trim();
+  dbg.Cmin = '—';
+  dbg.Cmax = '—';
+  if (nOk) {
+    dbg.N  = String(N);
+    dbg.NN = '—';
+  } else if (cOk) {
+    const nnRawDc = dcComputedE * 1000 / (3.6 * C);
+    dbg.N  = String(Math.ceil(nnRawDc));
+    dbg.NN = String(Math.round(nnRawDc * 100) / 100);
+  } else {
+    dbg.N  = '—';
+    dbg.NN = '—';
+  }
+  refreshDebug();
 }
 
 // ─────────────────────────────────────────────
 // DC page reset — called from resetPage('page-cost')
 // ─────────────────────────────────────────────
 function dcResetPage() {
+  dbgClear(); refreshDebug();   // clear debug panel on DfCost reset
   // Reset stored energy values
   dcComputedE    = NaN;
   dcComputedEmax = NaN;
@@ -2203,6 +2277,21 @@ function dtUpdateResult() {
         </tbody>
       </table>`;
 
+    // ── Debug panel update (DfTime L=f(E,T)) ──
+    const rd2dt = x => Math.round(x * 100) / 100;
+    const cminDbg = parseFloat(dtInputCmin.value.trim());
+    const cmaxDbg = parseFloat(dtInputCmax.value.trim());
+    dbg.T    = T_str;  dbg.Tmin = Tmin_str; dbg.Tmax = Tmax_str;
+    dbg.L    = String(L); dbg.Lmin = '—'; dbg.Lmax = lmaxStr !== '' ? lmaxStr : '—';
+    dbg.E    = String(rd2dt(Enom));
+    dbg.Emin = (dtPackErrors.Cmin === '' && !isNaN(cminDbg) && cminDbg > 0)
+               ? String(rd2dt(n * 3.6 * cminDbg / 1000)) : '—';
+    dbg.Emax = (dtPackErrors.Cmax === '' && !isNaN(cmaxDbg) && cmaxDbg > 0)
+               ? String(rd2dt(n * 3.6 * cmaxDbg / 1000)) : '—';
+    dbg.C    = C_str; dbg.Cmin = Cmin_str; dbg.Cmax = Cmax_str;
+    dbg.N    = N_str; dbg.NN   = '—';
+    refreshDebug();
+
   } else {
     // ── E=f(T,L): given T (TIME card) and L (Lx summary) → solve E; resolve N or C to meet E ──
     el.style.backgroundColor = '';   // PACK card colour (default via var(--color-card))
@@ -2237,6 +2326,20 @@ function dtUpdateResult() {
       ? `<tr><td class="rpt-td-lbl">Max Energy</td><td class="rpt-td-num">${esc(String(Emax))}</td><td></td><td></td><td class="rpt-td-unit">Wh</td></tr>`
       : '';
 
+    // ── Debug common values for E=f(T,L) path ──
+    const dbgSetEfTL = (NVal, CVal, NNVal) => {
+      dbg.T    = inputT.value.trim();
+      dbg.Tmin = inputTmin.value.trim(); dbg.Tmax = inputTmax.value.trim();
+      dbg.L    = lsL; dbg.Lmin = document.getElementById('dt-ls-Lmin').textContent.trim();
+      dbg.Lmax = lsLmax;
+      dbg.E    = String(E); dbg.Emin = '—'; dbg.Emax = String(Emax);
+      dbg.C    = CVal !== undefined ? String(CVal) : dtInputC.value.trim();
+      dbg.Cmin = dtInputCmin.value.trim(); dbg.Cmax = dtInputCmax.value.trim();
+      dbg.N    = NVal !== undefined ? String(NVal) : dtInputN.value.trim();
+      dbg.NN   = NNVal !== undefined ? String(Math.round(NNVal * 100) / 100) : '—';
+      refreshDebug();
+    };
+
     if (nOk) {
       // N given → compute C = E × 1000 / (N × 3.6)
       const computedC = Math.round(E * 1000 / (nV * 3.6));
@@ -2252,10 +2355,12 @@ function dtUpdateResult() {
           <tr><td class="rpt-td-lbl">Cells</td><td class="rpt-td-num">${esc(String(nV))}</td><td></td><td></td><td class="rpt-td-unit"></td></tr>
           <tr><td class="rpt-td-lbl">Cell Cap</td><td class="rpt-td-num">${esc(String(computedC))}</td><td colspan="2" class="rpt-computed-note">computed</td><td class="rpt-td-unit">mAh</td></tr>
         </tbody></table>`;
+      dbgSetEfTL(nV, computedC, undefined);
 
     } else if (cOkUser) {
       // C given (user-entered, not disabled) → compute N = ⌈E × 1000 / (3.6 × C)⌉
-      const computedN = Math.ceil(E * 1000 / (3.6 * cV));
+      const nnRaw    = E * 1000 / (3.6 * cV);
+      const computedN = Math.ceil(nnRaw);
       dtInputN.disabled = true;
       dtInputN.value    = String(computedN);
 
@@ -2268,12 +2373,14 @@ function dtUpdateResult() {
           <tr><td class="rpt-td-lbl">Cells</td><td class="rpt-td-num">${esc(String(computedN))}</td><td colspan="2" class="rpt-computed-note">computed</td><td class="rpt-td-unit"></td></tr>
           <tr><td class="rpt-td-lbl">Cell Cap</td><td class="rpt-td-num">${esc(String(cV))}</td><td></td><td></td><td class="rpt-td-unit">mAh</td></tr>
         </tbody></table>`;
+      dbgSetEfTL(computedN, cV, nnRaw);
 
     } else {
       // Neither N nor C entered yet — show E and prompt
       dtInputN.disabled = false;
       dtInputC.disabled = false;
       el.textContent = `Energy: ${E} Wh${Emax > E ? ' (max ' + Emax + ' Wh)' : ''} — enter N or C in PACK above`;
+      dbgSetEfTL(undefined, undefined, undefined);
     }
   }
 }
@@ -2810,6 +2917,7 @@ function dtRemoveLastLoadCard() {
 // DfTime page reset — called from resetPage('page-time')
 // ─────────────────────────────────────────────
 function dtResetPage() {
+  dbgClear(); refreshDebug();   // clear debug panel on DfTime reset
   // Re-hide PACK + LOAD; reset flags so reveal + mode lock fire again on next valid entry
   dtPackLoadVisible = false;
   dtMode = null;
