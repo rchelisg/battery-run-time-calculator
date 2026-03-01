@@ -2104,9 +2104,8 @@ function dtSetMode(mode) {
   dtMode = mode;
   if (mode === 'time') {
     document.getElementById('dt-load-group').style.display = 'none';
-  } else {
-    document.getElementById('dt-pack-card').style.display  = 'none';
   }
+  // Path B ('load'): PACK card stays visible — user enters N or C to resolve E
   dtUpdateResult();
 }
 
@@ -2209,37 +2208,80 @@ function dtUpdateResult() {
       </table>`;
 
   } else {
-    // ── Path B: E, L → T  (v1.1 T(EL): T = E/L; Tmin = Emin/Lmax; Tmax = Emax/Lmin) ──
-    if (!packValid) { el.textContent = 'solve E, L→T  (enter N and C to compute)'; return; }
+    // ── Path B: E(TL) — compute E from T and L; resolve N or C to meet E ──
+    el.style.backgroundColor = '';   // PACK card colour (default via var(--color-card))
 
     const lsL    = document.getElementById('dt-ls-L').textContent.trim();
-    const lsLmin = document.getElementById('dt-ls-Lmin').textContent.trim();
     const lsLmax = document.getElementById('dt-ls-Lmax').textContent.trim();
 
     const l = parseFloat(lsL);
-    if (isNaN(l) || l <= 0) { el.textContent = 'solve E, L→T'; return; }
+    if (isNaN(l) || l <= 0) { el.textContent = 'Enter load to compute energy'; return; }
 
-    const Enom = n * 3.6 * c / 1000;
+    const tNom = parseFloat(inputT.value.trim());
+    if (isNaN(tNom) || tNom <= 0) { el.textContent = 'Enter run time to compute energy'; return; }
 
-    // v1.1: Emin uses Cmin; Emax uses Cmax; Lmax/Lmin from DT load summary
-    const cminV = parseFloat(dtInputCmin.value.trim());
-    const cmaxV = parseFloat(dtInputCmax.value.trim());
-    const lminV = parseFloat(lsLmin);
-    const lmaxV = parseFloat(lsLmax);
+    const rd2  = v => Math.round(v * 100) / 100;
+    const E    = rd2(l * tNom / 60);
 
-    const Emin = (dtPackErrors.Cmin === '' && !isNaN(cminV) && cminV > 0) ? n * 3.6 * cminV / 1000 : Enom;
-    const Emax = (dtPackErrors.Cmax === '' && !isNaN(cmaxV) && cmaxV > 0) ? n * 3.6 * cmaxV / 1000 : Enom;
-    const Lmax = (lsLmax !== '—' && !isNaN(lmaxV) && lmaxV > 0) ? lmaxV : l;
-    const Lmin = (lsLmin !== '—' && !isNaN(lminV) && lminV > 0) ? lminV : l;
+    // Emin: worst-case required energy = Lmax × Tmax / 60
+    const tmaxRaw = inputTmax.value.trim();
+    const tmaxV   = parseFloat(tmaxRaw);
+    const Tmax    = (tmaxRaw !== '' && tmaxRaw !== '—' && !isNaN(tmaxV) && tmaxV > tNom) ? tmaxV : tNom;
+    const lmaxV   = parseFloat(lsLmax);
+    const Lmax    = (lsLmax !== '—' && !isNaN(lmaxV) && lmaxV > 0) ? lmaxV : l;
+    const Emin    = rd2(Lmax * Tmax / 60);
 
-    const T    = rd1(Enom / l * 60);
-    const Tmin = rd1(Emin / Lmax * 60);
-    const Tmax = rd1(Emax / Lmin * 60);
+    // N / C resolve — check current input values
+    const nV  = parseInt(dtInputN.value.trim(), 10);
+    const nOk = Number.isInteger(nV) && nV >= 1 && nV <= 8 && dtPackErrors.N === '';
+    // C: only "user-entered" when the input is not disabled
+    const cRawB  = dtInputC.value.trim();
+    const cV     = parseFloat(cRawB);
+    const cOkUser = !dtInputC.disabled && !isNaN(cV) && cV >= 100 && cV <= 8000 && dtPackErrors.C === '';
 
-    let txt = `T = ${T} Min`;
-    if (Tmin < T) txt += `   Min ${Tmin} Min`;
-    if (Tmax > T) txt += `   Max ${Tmax} Min`;
-    el.textContent = txt;
+    const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const eminRow = Emin > E
+      ? `<tr><td class="rpt-td-lbl">Min Energy</td><td class="rpt-td-num">${esc(String(Emin))}</td><td></td><td></td><td class="rpt-td-unit">Wh</td></tr>`
+      : '';
+
+    if (nOk) {
+      // N given → compute C = E × 1000 / (N × 3.6)
+      const computedC = Math.round(E * 1000 / (nV * 3.6));
+      dtInputC.disabled = true;
+      dtInputC.value    = String(computedC);
+
+      el.innerHTML = `
+        <div class="rpt-heading">Pack Solution</div>
+        <table class="rpt-table"><tbody>
+          <tr><td class="rpt-td-lbl">Energy</td><td class="rpt-td-num">${esc(String(E))}</td><td></td><td></td><td class="rpt-td-unit">Wh</td></tr>
+          ${eminRow}
+          <tr class="rpt-gap"><td colspan="5"></td></tr>
+          <tr><td class="rpt-td-lbl">Cells</td><td class="rpt-td-num">${esc(String(nV))}</td><td></td><td></td><td class="rpt-td-unit"></td></tr>
+          <tr><td class="rpt-td-lbl">Cell Cap</td><td class="rpt-td-num">${esc(String(computedC))}</td><td colspan="2" class="rpt-computed-note">computed</td><td class="rpt-td-unit">mAh</td></tr>
+        </tbody></table>`;
+
+    } else if (cOkUser) {
+      // C given (user-entered, not disabled) → compute N = ⌈E × 1000 / (3.6 × C)⌉
+      const computedN = Math.ceil(E * 1000 / (3.6 * cV));
+      dtInputN.disabled = true;
+      dtInputN.value    = String(computedN);
+
+      el.innerHTML = `
+        <div class="rpt-heading">Pack Solution</div>
+        <table class="rpt-table"><tbody>
+          <tr><td class="rpt-td-lbl">Energy</td><td class="rpt-td-num">${esc(String(E))}</td><td></td><td></td><td class="rpt-td-unit">Wh</td></tr>
+          ${eminRow}
+          <tr class="rpt-gap"><td colspan="5"></td></tr>
+          <tr><td class="rpt-td-lbl">Cells</td><td class="rpt-td-num">${esc(String(computedN))}</td><td colspan="2" class="rpt-computed-note">computed</td><td class="rpt-td-unit"></td></tr>
+          <tr><td class="rpt-td-lbl">Cell Cap</td><td class="rpt-td-num">${esc(String(cV))}</td><td></td><td></td><td class="rpt-td-unit">mAh</td></tr>
+        </tbody></table>`;
+
+    } else {
+      // Neither N nor C entered yet — show E and prompt
+      dtInputN.disabled = false;
+      dtInputC.disabled = false;
+      el.textContent = `Energy: ${E} Wh${Emin > E ? ' (min ' + Emin + ' Wh)' : ''} — enter N or C in PACK above`;
+    }
   }
 }
 
@@ -2780,7 +2822,14 @@ function dtResetPage() {
   dtMode = null;
   document.getElementById('dt-pack-card').style.display   = 'none';
   document.getElementById('dt-load-group').style.display  = 'none';
-  document.getElementById('dt-output-card').style.display = 'none';
+  const dtOutputEl = document.getElementById('dt-output-card');
+  dtOutputEl.style.display = 'none';
+  dtOutputEl.style.backgroundColor = '';   // clear any inline colour set by Path B
+  dtOutputEl.textContent = '';
+
+  // Re-enable N and C in case Path B disabled them for resolve
+  dtInputN.disabled = false;
+  dtInputC.disabled = false;
 
   // Reset DT PACK — no defaults; user must enter all values
   dtInputN.value = '';   dtInputN.dataset.lastValid = '';
