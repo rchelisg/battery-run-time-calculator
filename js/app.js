@@ -1089,7 +1089,7 @@ function addLoadCard() {
         <div class="load-field load-field-nominal">
           <label class="load-label" for="input-L${i}">Nominal</label>
           <div class="load-input-row">
-            <input class="field-input load-input" type="number"
+            <input class="field-input load-input" type="text"
                    id="input-L${i}" inputmode="decimal" step="0.1">
             <span class="load-unit">W</span>
           </div>
@@ -1099,7 +1099,7 @@ function addLoadCard() {
           <div class="load-field">
             <label class="load-label" for="input-Lmin${i}">Min</label>
             <div class="load-input-row">
-              <input class="field-input load-input" type="number"
+              <input class="field-input load-input" type="text"
                      id="input-Lmin${i}" inputmode="decimal" step="0.1">
               <span class="load-unit">W</span>
             </div>
@@ -1107,7 +1107,7 @@ function addLoadCard() {
           <div class="load-field">
             <label class="load-label" for="input-Lmax${i}">Max</label>
             <div class="load-input-row">
-              <input class="field-input load-input" type="number"
+              <input class="field-input load-input" type="text"
                      id="input-Lmax${i}" inputmode="decimal" step="0.1">
               <span class="load-unit unit-max">W</span>
             </div>
@@ -1990,7 +1990,7 @@ function dcAddLoadCard() {
         <div class="load-field load-field-nominal">
           <label class="load-label" for="dc-input-L${i}">Nominal</label>
           <div class="load-input-row">
-            <input class="field-input load-input" type="number"
+            <input class="field-input load-input" type="text"
                    id="dc-input-L${i}" inputmode="decimal" step="0.1">
             <span class="load-unit">W</span>
           </div>
@@ -1999,7 +1999,7 @@ function dcAddLoadCard() {
           <div class="load-field">
             <label class="load-label" for="dc-input-Lmin${i}">Min</label>
             <div class="load-input-row">
-              <input class="field-input load-input" type="number"
+              <input class="field-input load-input" type="text"
                      id="dc-input-Lmin${i}" inputmode="decimal" step="0.1">
               <span class="load-unit">W</span>
             </div>
@@ -2007,7 +2007,7 @@ function dcAddLoadCard() {
           <div class="load-field">
             <label class="load-label" for="dc-input-Lmax${i}">Max</label>
             <div class="load-input-row">
-              <input class="field-input load-input" type="number"
+              <input class="field-input load-input" type="text"
                      id="dc-input-Lmax${i}" inputmode="decimal" step="0.1">
               <span class="load-unit unit-max">W</span>
             </div>
@@ -2881,7 +2881,7 @@ function dtAddLoadCard() {
         <div class="load-field load-field-nominal">
           <label class="load-label" for="dt-input-L${i}">Nominal</label>
           <div class="load-input-row">
-            <input class="field-input load-input" type="number"
+            <input class="field-input load-input" type="text"
                    id="dt-input-L${i}" inputmode="decimal" step="0.1">
             <span class="load-unit">W</span>
           </div>
@@ -2890,7 +2890,7 @@ function dtAddLoadCard() {
           <div class="load-field">
             <label class="load-label" for="dt-input-Lmin${i}">Min</label>
             <div class="load-input-row">
-              <input class="field-input load-input" type="number"
+              <input class="field-input load-input" type="text"
                      id="dt-input-Lmin${i}" inputmode="decimal" step="0.1">
               <span class="load-unit">W</span>
             </div>
@@ -2898,7 +2898,7 @@ function dtAddLoadCard() {
           <div class="load-field">
             <label class="load-label" for="dt-input-Lmax${i}">Max</label>
             <div class="load-input-row">
-              <input class="field-input load-input" type="number"
+              <input class="field-input load-input" type="text"
                      id="dt-input-Lmax${i}" inputmode="decimal" step="0.1">
               <span class="load-unit unit-max">W</span>
             </div>
