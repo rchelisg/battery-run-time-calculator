@@ -190,6 +190,8 @@ body {
   transition: border-color 0.15s;
   /* Ensure touch target is at least 44 px tall */
   min-height: 44px;
+  /* Prevent double-tap zoom on iOS; allow single tap and panning */
+  touch-action: manipulation;
 }
 
 .field-input:focus {
