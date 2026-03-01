@@ -1145,7 +1145,7 @@ function removeLastLoadCard() {
 // ── Calculate run time (PAGE Calc) ──
 // Formula: E = N × 3.6 × C / 1000  (Wh)   T = E / L × 60  (Min)
 //
-// v1.1 spec (T(EL) path):
+// v1.2 T=f(E,L):
 //   T    = E / L × 60
 //   Tmin = Emin / Lmax × 60   (Emin uses Cmin if present; Lmax from summary if present)
 //   Tmax = Emax / Lmin × 60   (Emax uses Cmax if present; Lmin from summary if present)
@@ -1169,10 +1169,10 @@ function calcRunTime(N, C, Cmin, Cmax, lsL, lsLmin, lsLmax) {
   const E    = n * 3.6 * c / 1000;
   const T    = rd1(E / l * 60);
 
-  // v1.1: Emin uses Cmin if present; otherwise falls back to E
-  // v1.1: Emax uses Cmax if present; otherwise falls back to E
-  // v1.1: Lmax uses lsLmax if present (not '—'); otherwise falls back to L
-  // v1.1: Lmin uses lsLmin if present (not '—'); otherwise falls back to L
+  // v1.2: Emin uses Cmin if present; otherwise falls back to E
+  // v1.2: Emax uses Cmax if present; otherwise falls back to E
+  // v1.2: Lmax uses lsLmax if present (not '—'); otherwise falls back to L
+  // v1.2: Lmin uses lsLmin if present (not '—'); otherwise falls back to L
   const cminV = parseFloat(Cmin);
   const cmaxV = parseFloat(Cmax);
   const lminV = parseFloat(lsLmin);
@@ -1400,8 +1400,8 @@ updateReportTime();
 
 // ─────────────────────────────────────────────
 // DfCost page — dc-prefixed IDs; independent state
-// E(TL) path: given T (run time) and L (load), compute required energy E
-// E = L × T / 60    Emin = Lmax × Tmax / 60
+// E=f(T,L) path: given T (run time) and L (load), compute required energy E
+// E = L × T / 60    Emin = Lmax × T / 60    (v1.2)
 // ─────────────────────────────────────────────
 
 // ── DC computed energy state (updated by dcUpdateEnergyCard) ──
@@ -1882,12 +1882,12 @@ function dcRemoveLastLoadCard() {
 }
 
 // ─────────────────────────────────────────────
-// DC energy computation and display (v1.1 E(TL) path)
+// DC energy computation and display (v1.2 E=f(T,L) path)
 // ─────────────────────────────────────────────
 
-// Compute {E, Emin} from TIME (T, Tmax) and LOAD (L, Lmax).
+// Compute {E, Emin} from TIME (T) and LOAD (L, Lmax).
 // E    = L × T / 60           (nominal required energy, Wh)
-// Emin = Lmax × Tmax / 60     (minimum pack energy for worst case, Wh)
+// Emin = Lmax × T / 60        (v1.2: minimum pack energy = worst-case load × nominal T, Wh)
 // Returns {E: NaN, Emin: NaN} when T or L are not yet entered.
 function dcComputeEnergyValues() {
   const T   = parseFloat(dcInputT.value.trim());
@@ -1895,17 +1895,13 @@ function dcComputeEnergyValues() {
   const L   = parseFloat(lsL);
   if (isNaN(T) || T <= 0 || isNaN(L) || L <= 0) return { E: NaN, Emin: NaN };
 
-  const tmaxRaw = dcInputTmax.value.trim();
-  const tmaxV   = parseFloat(tmaxRaw);
-  const Tmax    = (tmaxRaw !== '' && !isNaN(tmaxV) && tmaxV >= T) ? tmaxV : T;
-
   const lsLmax = document.getElementById('dc-ls-Lmax').textContent.trim();
   const LmaxV  = parseFloat(lsLmax);
   const Lmax   = (lsLmax !== '—' && !isNaN(LmaxV) && LmaxV > 0) ? LmaxV : L;
 
   const rd2  = v => Math.round(v * 100) / 100;
   const E    = rd2(L * T / 60);
-  const Emin = rd2(Lmax * Tmax / 60);
+  const Emin = rd2(Lmax * T / 60);   // v1.2: Lmax × T (not Lmax × Tmax)
   return { E, Emin };
 }
 
@@ -2085,8 +2081,8 @@ dcAddLoadCard();
 let dtPackLoadVisible = false;
 
 // Mode lock: null until first valid entry after reveal.
-// 'time' → hide LOAD group, solve E,T→L
-// 'load' → hide PACK card, solve E,L→T
+// 'time' → hide LOAD group; path is L=f(E,T)
+// 'load' → PACK stays visible for N/C resolve; path is E=f(T,L)
 let dtMode = null;
 
 // Called from inputT blur listener when T has a valid non-empty value
@@ -2110,8 +2106,8 @@ function dtSetMode(mode) {
 }
 
 // Compute and display the result for the locked path.
-// Path A (time): given E (PACK) + T (TIME card) → compute L
-// Path B (load): given E (PACK) + L (Lx summary)  → compute T
+// L=f(E,T) mode (time): given E (PACK) + T (TIME card) → compute L
+// E=f(T,L) mode (load): given T (TIME card) + L (Lx summary) → compute E, then resolve N or C
 function dtUpdateResult() {
   const el = document.getElementById('dt-output-card');
   if (dtMode === null) { el.style.display = 'none'; return; }
@@ -2126,7 +2122,7 @@ function dtUpdateResult() {
                  && !isNaN(c)           && c >= 100 && c <= 8000;
 
   if (dtMode === 'time') {
-    // ── Path A: E, T → L  (v1.1 L(ET): L = E/T; Lmin = N/A; Lmax = Emin/Tmax) ──
+    // ── L=f(E,T): given E (PACK) and T → solve L  (v1.2: L = E/T; Lmin = N/A; Lmax = Emin/Tmax) ──
     if (!packValid) { el.textContent = 'Enter N and C to compute load'; return; }
     const tNom = parseFloat(inputT.value.trim());
     if (isNaN(tNom) || tNom <= 0) { el.textContent = 'Enter run time to compute load'; return; }
@@ -2145,7 +2141,7 @@ function dtUpdateResult() {
     const Tmax    = (tmaxRaw !== '' && tmaxRaw !== '—' && !isNaN(tmaxV) && tmaxV > tNom)
                     ? tmaxV : tNom;
 
-    // v1.1: Lmax = Emin / Tmax × 60  (only show if < L; Lmin = N/A)
+    // v1.2: Lmax = Emin / Tmax × 60  (only show if < L; Lmin = N/A)
     const Lmax    = rd1(Emin * 60 / Tmax);
     const lmaxStr = Lmax < L ? String(Lmax) : '';
 
@@ -2208,7 +2204,7 @@ function dtUpdateResult() {
       </table>`;
 
   } else {
-    // ── Path B: E(TL) — compute E from T and L; resolve N or C to meet E ──
+    // ── E=f(T,L): given T (TIME card) and L (Lx summary) → solve E; resolve N or C to meet E ──
     el.style.backgroundColor = '';   // PACK card colour (default via var(--color-card))
 
     const lsL    = document.getElementById('dt-ls-L').textContent.trim();
@@ -2223,13 +2219,10 @@ function dtUpdateResult() {
     const rd2  = v => Math.round(v * 100) / 100;
     const E    = rd2(l * tNom / 60);
 
-    // Emin: worst-case required energy = Lmax × Tmax / 60
-    const tmaxRaw = inputTmax.value.trim();
-    const tmaxV   = parseFloat(tmaxRaw);
-    const Tmax    = (tmaxRaw !== '' && tmaxRaw !== '—' && !isNaN(tmaxV) && tmaxV > tNom) ? tmaxV : tNom;
+    // v1.2: Emin = Lmax × T / 60  (worst-case load × nominal run time)
     const lmaxV   = parseFloat(lsLmax);
     const Lmax    = (lsLmax !== '—' && !isNaN(lmaxV) && lmaxV > 0) ? lmaxV : l;
-    const Emin    = rd2(Lmax * Tmax / 60);
+    const Emin    = rd2(Lmax * tNom / 60);
 
     // N / C resolve — check current input values
     const nV  = parseInt(dtInputN.value.trim(), 10);

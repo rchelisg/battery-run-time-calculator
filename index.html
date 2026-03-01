@@ -218,6 +218,42 @@
           </div>
         </div><!-- /time-card -->
 
+        <!-- ── DT LOAD group — revealed after first valid T entry ── -->
+        <div class="load-group" id="dt-load-group" style="display:none">
+          <div class="card load-card" id="dt-load-summary-card">
+            <h2>LOAD</h2>
+            <div class="load-content">
+              <div class="load-row">
+                <div class="load-field load-field-nominal">
+                  <label class="load-label">Nominal</label>
+                  <div class="load-input-row">
+                    <span class="load-summary-val" id="dt-ls-L">—</span>
+                    <span class="load-unit">W</span>
+                  </div>
+                </div>
+                <div class="load-minmax-group">
+                  <div class="load-field">
+                    <label class="load-label">Min</label>
+                    <div class="load-input-row">
+                      <span class="load-summary-val" id="dt-ls-Lmin">—</span>
+                      <span class="load-unit">W</span>
+                    </div>
+                  </div>
+                  <div class="load-field">
+                    <label class="load-label">Max</label>
+                    <div class="load-input-row">
+                      <span class="load-summary-val" id="dt-ls-Lmax">—</span>
+                      <span class="load-unit unit-max">W</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="pack-ctrl-spacer" aria-hidden="true"></div>
+          </div><!-- /dt-load-summary-card -->
+          <div id="dt-load-cards-container"></div>
+        </div><!-- /dt-load-group -->
+
         <!-- ── DT PACK card — revealed after first valid T entry ── -->
         <div class="card pack-card" id="dt-pack-card" style="display:none">
           <h2>PACK</h2>
@@ -259,42 +295,6 @@
           </div>
           <div class="pack-ctrl-spacer" aria-hidden="true"></div>
         </div><!-- /dt-pack-card -->
-
-        <!-- ── DT LOAD group — revealed after first valid T entry ── -->
-        <div class="load-group" id="dt-load-group" style="display:none">
-          <div class="card load-card" id="dt-load-summary-card">
-            <h2>LOAD</h2>
-            <div class="load-content">
-              <div class="load-row">
-                <div class="load-field load-field-nominal">
-                  <label class="load-label">Nominal</label>
-                  <div class="load-input-row">
-                    <span class="load-summary-val" id="dt-ls-L">—</span>
-                    <span class="load-unit">W</span>
-                  </div>
-                </div>
-                <div class="load-minmax-group">
-                  <div class="load-field">
-                    <label class="load-label">Min</label>
-                    <div class="load-input-row">
-                      <span class="load-summary-val" id="dt-ls-Lmin">—</span>
-                      <span class="load-unit">W</span>
-                    </div>
-                  </div>
-                  <div class="load-field">
-                    <label class="load-label">Max</label>
-                    <div class="load-input-row">
-                      <span class="load-summary-val" id="dt-ls-Lmax">—</span>
-                      <span class="load-unit unit-max">W</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div class="pack-ctrl-spacer" aria-hidden="true"></div>
-          </div><!-- /dt-load-summary-card -->
-          <div id="dt-load-cards-container"></div>
-        </div><!-- /dt-load-group -->
 
         <!-- ── DT output card — shown after mode is locked ── -->
         <div class="card dt-output-card" id="dt-output-card" style="display:none"></div>
@@ -422,7 +422,7 @@
     </main>
 
     <footer class="app-footer">
-      <p><span id="footer-timestamp"></span>BRTC &copy; 2026 V3.2</p>
+      <p><span id="footer-timestamp"></span>BRTC &copy; 2026 V3.3</p>
     </footer>
 
   </div>
