@@ -2973,3 +2973,6 @@ function dtResetPage() {
 
 // ── Initialise DfTime: create initial L(0) card ──
 dtAddLoadCard();
+
+// ── Initialise debug panel with '—' placeholder values ──
+refreshDebug();
