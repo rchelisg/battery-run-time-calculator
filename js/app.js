@@ -2942,11 +2942,11 @@ function dtResetPage() {
   document.getElementById('dt-load-group').style.display  = 'none';
   document.getElementById('dt-output-card').style.display = 'none';
 
-  // Reset DT PACK
-  dtInputN.value = '7';   dtInputN.dataset.lastValid = '7';
+  // Reset DT PACK — no defaults; user must enter all values
+  dtInputN.value = '';   dtInputN.dataset.lastValid = '';
   setDtFieldState(dtInputN, 'N', '');
 
-  dtInputC.value = '2000'; dtInputC.dataset.lastValid = '2000';
+  dtInputC.value = '';   dtInputC.dataset.lastValid = '';
   setDtFieldState(dtInputC, 'C', '');
 
   dtInputCmin.value = '';  dtInputCmin.dataset.lastValid = '';
