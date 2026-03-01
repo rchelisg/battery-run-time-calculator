@@ -2164,10 +2164,18 @@ function dtUpdateResult() {
     const Tmin_str = inputTmin.value.trim();
     const Tmax_str = inputTmax.value.trim();
 
+    el.style.backgroundColor = '#FFF3F3';  // match LOAD card background colour
     el.innerHTML = `
       <div class="rpt-heading">To Meet Run Time</div>
       <table class="rpt-table">
         <tbody>
+          <tr>
+            <td class="rpt-td-lbl">Run Time</td>
+            <td class="rpt-td-num">${fv(fmtTime(T_str))}</td>
+            <td class="rpt-td-num">${fv(fmtTime(Tmin_str))}</td>
+            <td class="rpt-td-num">${fv(fmtTime(Tmax_str))}</td>
+            <td class="rpt-td-unit">Min</td>
+          </tr>
           <tr>
             <td class="rpt-td-lbl">Cells</td>
             <td class="rpt-td-num">${N_str !== '' ? fv(N_str) : '—'}</td>
@@ -2183,13 +2191,6 @@ function dtUpdateResult() {
             <td class="rpt-td-unit">mAh</td>
           </tr>
           <tr class="rpt-gap"><td colspan="5"></td></tr>
-          <tr>
-            <td class="rpt-td-lbl">Run Time</td>
-            <td class="rpt-td-num">${fv(fmtTime(T_str))}</td>
-            <td class="rpt-td-num">${fv(fmtTime(Tmin_str))}</td>
-            <td class="rpt-td-num">${fv(fmtTime(Tmax_str))}</td>
-            <td class="rpt-td-unit">Min</td>
-          </tr>
           <tr class="rpt-col-hdr">
             <td class="rpt-td-lbl"></td>
             <td class="rpt-td-num">Nom</td>
