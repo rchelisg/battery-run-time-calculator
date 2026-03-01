@@ -2342,9 +2342,21 @@ function dtUpdateResult() {
 
     if (nOk) {
       // N given → compute C = E × 1000 / (N × 3.6)
-      const computedC = Math.round(E * 1000 / (nV * 3.6));
-      dtInputC.disabled = true;
-      dtInputC.value    = String(computedC);
+      //                 Cmax = Emax × 1000 / (N × 3.6)  (cell cap required under max-load condition)
+      const computedC    = Math.round(E    * 1000 / (nV * 3.6));
+      const computedCmax = Math.round(Emax * 1000 / (nV * 3.6));
+      dtInputC.disabled    = true;
+      dtInputC.value       = String(computedC);
+      dtInputCmax.disabled = true;
+      dtInputCmax.value    = String(computedCmax);
+
+      const showCmax   = computedCmax > computedC;
+      const cmaxColHdr = showCmax
+        ? `<tr class="rpt-col-hdr"><td class="rpt-td-lbl"></td><td class="rpt-td-num">Nom</td><td class="rpt-td-num">Max</td><td></td><td class="rpt-td-unit"></td></tr>`
+        : '';
+      const cellCapRow = showCmax
+        ? `<tr><td class="rpt-td-lbl">Cell Cap</td><td class="rpt-td-num">${esc(String(computedC))}</td><td class="rpt-td-num">${esc(String(computedCmax))}</td><td class="rpt-computed-note">computed</td><td class="rpt-td-unit">mAh</td></tr>`
+        : `<tr><td class="rpt-td-lbl">Cell Cap</td><td class="rpt-td-num">${esc(String(computedC))}</td><td colspan="2" class="rpt-computed-note">computed</td><td class="rpt-td-unit">mAh</td></tr>`;
 
       el.innerHTML = `
         <div class="rpt-heading">Pack Solution</div>
@@ -2353,7 +2365,8 @@ function dtUpdateResult() {
           ${emaxRow}
           <tr class="rpt-gap"><td colspan="5"></td></tr>
           <tr><td class="rpt-td-lbl">Cells</td><td class="rpt-td-num">${esc(String(nV))}</td><td></td><td></td><td class="rpt-td-unit"></td></tr>
-          <tr><td class="rpt-td-lbl">Cell Cap</td><td class="rpt-td-num">${esc(String(computedC))}</td><td colspan="2" class="rpt-computed-note">computed</td><td class="rpt-td-unit">mAh</td></tr>
+          ${cmaxColHdr}
+          ${cellCapRow}
         </tbody></table>`;
       dbgSetEfTL(nV, computedC, undefined);
 
@@ -2377,8 +2390,9 @@ function dtUpdateResult() {
 
     } else {
       // Neither N nor C entered yet — show E and prompt
-      dtInputN.disabled = false;
-      dtInputC.disabled = false;
+      dtInputN.disabled    = false;
+      dtInputC.disabled    = false;
+      dtInputCmax.disabled = false;
       el.textContent = `Energy: ${E} Wh${Emax > E ? ' (max ' + Emax + ' Wh)' : ''} — enter N or C in PACK above`;
       dbgSetEfTL(undefined, undefined, undefined);
     }
@@ -2928,9 +2942,10 @@ function dtResetPage() {
   dtOutputEl.style.backgroundColor = '';   // clear any inline colour set by Path B
   dtOutputEl.textContent = '';
 
-  // Re-enable N and C in case Path B disabled them for resolve
-  dtInputN.disabled = false;
-  dtInputC.disabled = false;
+  // Re-enable N, C, Cmax in case Path B (E=f(T,L)) disabled them for resolve
+  dtInputN.disabled    = false;
+  dtInputC.disabled    = false;
+  dtInputCmax.disabled = false;
 
   // Reset DT PACK — no defaults; user must enter all values
   dtInputN.value = '';   dtInputN.dataset.lastValid = '';
