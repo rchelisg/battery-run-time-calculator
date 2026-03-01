@@ -484,13 +484,8 @@ inputT.addEventListener('blur', () => {
     validateT();
   }
   tryAutoPopulateTime();
-  // SCREEN DfTime: reveal PACK+LOAD on first valid T entry;
-  // on subsequent T blurs (after PACK+LOAD visible) lock Mode A
-  if (inputT.value.trim() !== '') {
-    const wasVisible = dtPackLoadVisible;
-    dtRevealPackAndLoad();
-    if (wasVisible) dtSetMode('time');
-  }
+  // SCREEN DfTime: reveal PACK+LOAD on first valid T entry — T never locks a mode
+  if (inputT.value.trim() !== '') dtRevealPackAndLoad();
 });
 
 // Tmin — track ownership on input; revert-on-invalid on blur; auto-populate peer
@@ -512,8 +507,6 @@ inputTmin.addEventListener('blur', () => {
     validateTmin();
   }
   tryAutoPopulateTime();
-  // SCREEN DfTime: lock Mode A if PACK+LOAD are already visible
-  if (inputTmin.value.trim() !== '' && dtPackLoadVisible) dtSetMode('time');
 });
 
 // ─────────────────────────────────────────────
@@ -2403,7 +2396,7 @@ function dtRevealPackAndLoad() {
   document.getElementById('dt-load-group').style.display = '';
 }
 
-// Called when the user makes a valid entry in TIME card or LOAD group (after reveal).
+// Called when the user makes a valid entry in PACK card (Path A) or Lx card (Path B).
 // Locks the mode on first call; subsequent calls are ignored.
 function dtSetMode(mode) {
   if (dtMode !== null) return;          // already locked — ignore
@@ -2413,9 +2406,100 @@ function dtSetMode(mode) {
   } else {
     document.getElementById('dt-pack-card').style.display  = 'none';
   }
+  dtUpdateResult();
+}
+
+// Compute and display the result for the locked path.
+// Path A (time): given E (PACK) + T (TIME card) → compute L
+// Path B (load): given E (PACK) + L (Lx summary)  → compute T
+function dtUpdateResult() {
   const el = document.getElementById('dt-output-card');
-  el.textContent = mode === 'time' ? 'solve E, T→L' : 'solve E, L→T';
+  if (dtMode === null) { el.style.display = 'none'; return; }
   el.style.display = '';
+
+  const rd1 = v => Math.round(v * 10) / 10;
+
+  // PACK values — needed for E in both paths (card may be hidden but values remain)
+  const n = parseInt(dtInputN.value.trim(), 10);
+  const c = parseFloat(dtInputC.value.trim());
+  const packValid = Number.isInteger(n) && n >= 1 && n <= 8
+                 && !isNaN(c)           && c >= 100 && c <= 8000;
+
+  if (dtMode === 'time') {
+    // ── Path A: E, T → L ──────────────────────────────────────────────────────
+    if (!packValid) { el.textContent = 'solve E, T→L  (enter N and C to compute)'; return; }
+    const tNom = parseFloat(inputT.value.trim());
+    if (isNaN(tNom) || tNom <= 0) { el.textContent = 'solve E, T→L'; return; }
+
+    const Enom = n * 3.6 * c / 1000;
+
+    // E-set: add Emin/Emax when Cmin/Cmax are present
+    const eSet = [Enom];
+    const cminV = parseFloat(dtInputCmin.value.trim());
+    const cmaxV = parseFloat(dtInputCmax.value.trim());
+    if (!isNaN(cminV) && cminV > 0) eSet.push(n * 3.6 * cminV / 1000);
+    if (!isNaN(cmaxV) && cmaxV > 0) eSet.push(n * 3.6 * cmaxV / 1000);
+
+    // T-set: add Tmin/Tmax when present (Tmax is auto-populated read-only)
+    const tSet = [tNom];
+    const tminV = parseFloat(inputTmin.value.trim());
+    const tmaxV = parseFloat(inputTmax.value.trim());
+    if (!isNaN(tminV) && tminV > 0) tSet.push(tminV);
+    if (!isNaN(tmaxV) && tmaxV > 0) tSet.push(tmaxV);
+
+    // All (E / T) × 60 combinations → pick nominal, min, max
+    const cands = [];
+    for (const e of eSet) for (const t of tSet) cands.push(rd1(e * 60 / t));
+
+    const lNom = rd1(Enom * 60 / tNom);
+    const lMin = Math.min(...cands);
+    const lMax = Math.max(...cands);
+
+    let txt = `L = ${lNom} W`;
+    if (lMin < lNom) txt += `   Min ${lMin} W`;
+    if (lMax > lNom) txt += `   Max ${lMax} W`;
+    el.textContent = txt;
+
+  } else {
+    // ── Path B: E, L → T ──────────────────────────────────────────────────────
+    if (!packValid) { el.textContent = 'solve E, L→T  (enter N and C to compute)'; return; }
+
+    const lsL    = document.getElementById('dt-ls-L').textContent.trim();
+    const lsLmin = document.getElementById('dt-ls-Lmin').textContent.trim();
+    const lsLmax = document.getElementById('dt-ls-Lmax').textContent.trim();
+
+    const l = parseFloat(lsL);
+    if (isNaN(l) || l <= 0) { el.textContent = 'solve E, L→T'; return; }
+
+    const Enom = n * 3.6 * c / 1000;
+
+    // E-set
+    const eSet = [Enom];
+    const cminV = parseFloat(dtInputCmin.value.trim());
+    const cmaxV = parseFloat(dtInputCmax.value.trim());
+    if (!isNaN(cminV) && cminV > 0) eSet.push(n * 3.6 * cminV / 1000);
+    if (!isNaN(cmaxV) && cmaxV > 0) eSet.push(n * 3.6 * cmaxV / 1000);
+
+    // L-set from DT load summary spans
+    const lSet = [l];
+    const lminV = parseFloat(lsLmin);
+    const lmaxV = parseFloat(lsLmax);
+    if (lsLmin !== '—' && !isNaN(lminV) && lminV > 0) lSet.push(lminV);
+    if (lsLmax !== '—' && !isNaN(lmaxV) && lmaxV > 0) lSet.push(lmaxV);
+
+    // All (E / L) × 60 combinations → pick nominal, min, max
+    const cands = [];
+    for (const e of eSet) for (const lv of lSet) cands.push(rd1(e / lv * 60));
+
+    const tNom = rd1(Enom / l * 60);
+    const tMin = Math.min(...cands);
+    const tMax = Math.max(...cands);
+
+    let txt = `T = ${tNom} Min`;
+    if (tMin < tNom) txt += `   Min ${tMin} Min`;
+    if (tMax > tNom) txt += `   Max ${tMax} Min`;
+    el.textContent = txt;
+  }
 }
 
 // ── DT PACK elements and state ──
@@ -2564,11 +2648,19 @@ dtInputC.dataset.lastValid    = dtInputC.value;
 dtInputCmin.dataset.lastValid = dtInputCmin.value;
 dtInputCmax.dataset.lastValid = dtInputCmax.value;
 
-dtInputN.addEventListener('blur', () => { blurValidate(dtInputN, validateDtN); });
+dtInputN.addEventListener('blur', () => {
+  blurValidate(dtInputN, validateDtN);
+  if (!dtPackLoadVisible) return;
+  if (dtInputN.value.trim() !== '') dtSetMode('time');   // lock Path A (no-op if already locked)
+  if (dtMode !== null) dtUpdateResult();
+});
 
 dtInputC.addEventListener('blur', () => {
   blurValidate(dtInputC, validateDtC);
   tryAutoPopulateDtPack();
+  if (!dtPackLoadVisible) return;
+  if (dtInputC.value.trim() !== '') dtSetMode('time');
+  if (dtMode !== null) dtUpdateResult();
 });
 
 dtInputCmin.addEventListener('input', () => {
@@ -2589,6 +2681,9 @@ dtInputCmin.addEventListener('blur', () => {
     validateDtCmin();
   }
   tryAutoPopulateDtPack();
+  if (!dtPackLoadVisible) return;
+  if (dtInputCmin.value.trim() !== '') dtSetMode('time');
+  if (dtMode !== null) dtUpdateResult();
 });
 
 dtInputCmax.addEventListener('input', () => {
@@ -2609,6 +2704,9 @@ dtInputCmax.addEventListener('blur', () => {
     validateDtCmax();
   }
   tryAutoPopulateDtPack();
+  if (!dtPackLoadVisible) return;
+  if (dtInputCmax.value.trim() !== '') dtSetMode('time');
+  if (dtMode !== null) dtUpdateResult();
 });
 
 // Initial auto-populate — seeds Cmin/Cmax from the default C value (2000 mAh)
@@ -2819,8 +2917,9 @@ function dtAttachLoadListeners(i) {
     }
     dtTryAutoPopulateAll(i);
     dtUpdateDtTotalRow();
-    // SCREEN DfTime: lock Mode B if PACK+LOAD are visible and a valid L was entered
+    // SCREEN DfTime: lock Path B on first valid L entry; keep result live after that
     if (lEl.value.trim() !== '' && dtPackLoadVisible) dtSetMode('load');
+    if (dtMode === 'load') dtUpdateResult();
   });
 
   lminEl.addEventListener('input', () => {
@@ -2838,8 +2937,8 @@ function dtAttachLoadListeners(i) {
     }
     dtTryAutoPopulateAll(i);
     dtUpdateDtTotalRow();
-    // SCREEN DfTime: lock Mode B if PACK+LOAD are visible and a valid Lmin was entered
     if (lminEl.value.trim() !== '' && dtPackLoadVisible) dtSetMode('load');
+    if (dtMode === 'load') dtUpdateResult();
   });
 
   lmaxEl.addEventListener('input', () => {
@@ -2857,8 +2956,8 @@ function dtAttachLoadListeners(i) {
     }
     dtTryAutoPopulateAll(i);
     dtUpdateDtTotalRow();
-    // SCREEN DfTime: lock Mode B if PACK+LOAD are visible and a valid Lmax was entered
     if (lmaxEl.value.trim() !== '' && dtPackLoadVisible) dtSetMode('load');
+    if (dtMode === 'load') dtUpdateResult();
   });
 
   if (minBtn)  minBtn.addEventListener('click',  dtRemoveLastLoadCard);
