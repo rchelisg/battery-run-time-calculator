@@ -2128,9 +2128,9 @@ function dtUpdateResult() {
 
   if (dtMode === 'time') {
     // ── Path A: E, T → L  (v1.1 L(ET): L = E/T; Lmin = N/A; Lmax = Emin/Tmax) ──
-    if (!packValid) { el.textContent = 'solve E, T→L  (enter N and C to compute)'; return; }
+    if (!packValid) { el.textContent = 'Enter N and C to compute load'; return; }
     const tNom = parseFloat(inputT.value.trim());
-    if (isNaN(tNom) || tNom <= 0) { el.textContent = 'solve E, T→L'; return; }
+    if (isNaN(tNom) || tNom <= 0) { el.textContent = 'Enter run time to compute load'; return; }
 
     const Enom = n * 3.6 * c / 1000;
     const L    = rd1(Enom * 60 / tNom);
@@ -2147,11 +2147,65 @@ function dtUpdateResult() {
                     ? tmaxV : tNom;
 
     // v1.1: Lmax = Emin / Tmax × 60  (only show if < L; Lmin = N/A)
-    const Lmax = rd1(Emin * 60 / Tmax);
+    const Lmax    = rd1(Emin * 60 / Tmax);
+    const lmaxStr = Lmax < L ? String(Lmax) : '';
 
-    let txt = `L = ${L} W`;
-    if (Lmax < L) txt += `   Max ${Lmax} W`;
-    el.textContent = txt;
+    // Render REPORT LOAD card — "To Meet Run Time" template
+    function escH(s) {
+      return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+    function fv(raw) { return escH(typeof raw === 'string' ? raw.trim() : String(raw)); }
+
+    const N_str    = dtInputN.value.trim();
+    const C_str    = dtInputC.value.trim();
+    const Cmin_str = dtInputCmin.value.trim();
+    const Cmax_str = dtInputCmax.value.trim();
+    const T_str    = inputT.value.trim();
+    const Tmin_str = inputTmin.value.trim();
+    const Tmax_str = inputTmax.value.trim();
+
+    el.innerHTML = `
+      <div class="rpt-heading">To Meet Run Time</div>
+      <table class="rpt-table">
+        <tbody>
+          <tr>
+            <td class="rpt-td-lbl">Cells</td>
+            <td class="rpt-td-num">${N_str !== '' ? fv(N_str) : '—'}</td>
+            <td class="rpt-td-num"></td>
+            <td class="rpt-td-num"></td>
+            <td class="rpt-td-unit"></td>
+          </tr>
+          <tr>
+            <td class="rpt-td-lbl">Cell Cap</td>
+            <td class="rpt-td-num">${fv(fmtCap(C_str))}</td>
+            <td class="rpt-td-num">${fv(fmtCap(Cmin_str))}</td>
+            <td class="rpt-td-num">${fv(fmtCap(Cmax_str))}</td>
+            <td class="rpt-td-unit">mAh</td>
+          </tr>
+          <tr class="rpt-gap"><td colspan="5"></td></tr>
+          <tr>
+            <td class="rpt-td-lbl">Run Time</td>
+            <td class="rpt-td-num">${fv(fmtTime(T_str))}</td>
+            <td class="rpt-td-num">${fv(fmtTime(Tmin_str))}</td>
+            <td class="rpt-td-num">${fv(fmtTime(Tmax_str))}</td>
+            <td class="rpt-td-unit">Min</td>
+          </tr>
+          <tr class="rpt-col-hdr">
+            <td class="rpt-td-lbl"></td>
+            <td class="rpt-td-num">Nom</td>
+            <td class="rpt-td-num">Min</td>
+            <td class="rpt-td-num">Max</td>
+            <td class="rpt-td-unit"></td>
+          </tr>
+          <tr class="rpt-time-row">
+            <td class="rpt-td-lbl">Load Allowed</td>
+            <td class="rpt-td-num">${fv(fmtLoad(String(L)))}</td>
+            <td class="rpt-td-num">${fv(fmtLoad(''))}</td>
+            <td class="rpt-td-num">${fv(fmtLoad(lmaxStr))}</td>
+            <td class="rpt-td-unit">W</td>
+          </tr>
+        </tbody>
+      </table>`;
 
   } else {
     // ── Path B: E, L → T  (v1.1 T(EL): T = E/L; Tmin = Emin/Lmax; Tmax = Emax/Lmin) ──
