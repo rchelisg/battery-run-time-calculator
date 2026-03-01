@@ -30,7 +30,29 @@
       "Bash(powershell.exe -ExecutionPolicy Bypass -Command \":*)",
       "Bash(timeout 5 powershell.exe:*)",
       "Bash(powershell.exe -ExecutionPolicy Bypass -File \"C:\\\\Users\\\\User\\\\Documents\\\\AI\\\\Claude\\\\battery-run-time-calculator\\\\.claude\\\\worktrees\\\\confident-brown\\\\kill-server.ps1\")",
-      "Bash(Sort-Object LastWriteTime -Descending)"
+      "Bash(Sort-Object LastWriteTime -Descending)",
+      "Bash(git -C \"C:\\\\Users\\\\User\\\\Documents\\\\AI\\\\Claude\\\\battery-run-time-calculator\\\\.claude\\\\worktrees\\\\confident-brown\" pull)",
+      "Bash($env:PORT=8081)",
+      "Bash(powershell.exe -ExecutionPolicy Bypass -File \"C:\\\\Users\\\\User\\\\Documents\\\\AI\\\\Claude\\\\battery-run-time-calculator\\\\.claude\\\\worktrees\\\\confident-brown\\\\serve.ps1\")",
+      "Bash(Start-Sleep -Seconds 3)",
+      "Bash(Get-Content \"C:\\\\Users\\\\User\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-User-Documents-AI-Claude-battery-run-time-calculator--claude-worktrees-confident-brown\\\\tasks\\\\b67d950.output\")",
+      "Bash(powershell.exe -ExecutionPolicy Bypass -Command:*)",
+      "Bash(for port in 8082 8083 8084 8085 8090 8888 9000 9090 3000 5000)",
+      "Bash(do netstat -ano)",
+      "Bash(powershell.exe -ExecutionPolicy Bypass -File \"C:\\\\Temp\\\\test_serve.ps1\")",
+      "Bash(powershell.exe -ExecutionPolicy Bypass -File \"C:\\\\Temp\\\\debug_serve.ps1\")",
+      "Bash(powershell.exe -ExecutionPolicy Bypass -File \"C:\\\\Temp\\\\kill_servers.ps1\")",
+      "Bash(py3:*)",
+      "Bash(php:*)",
+      "Bash(perl:*)",
+      "Bash(powershell.exe -ExecutionPolicy Bypass -File:*)",
+      "Bash(wsl --version:*)",
+      "Bash(wsl echo:*)",
+      "Bash(git -C \"C:\\\\Users\\\\User\\\\Documents\\\\AI\\\\Claude\\\\battery-run-time-calculator\\\\.claude\\\\worktrees\\\\confident-brown\" status)",
+      "Bash(git merge:*)",
+      "Bash(git checkout main)",
+      "Bash(node -e \":*)",
+      "Bash(git checkout claude/confident-brown)"
     ]
   }
 }

@@ -3,9 +3,10 @@
   "configurations": [
     {
       "name": "Battery Calc",
-      "runtimeExecutable": "powershell.exe",
+      "runtimeExecutable": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
       "runtimeArgs": ["-ExecutionPolicy", "Bypass", "-File", "C:\\Users\\User\\Documents\\AI\\Claude\\battery-run-time-calculator\\.claude\\worktrees\\confident-brown\\serve.ps1"],
-      "port": 8080
+      "port": 8082,
+      "autoPort": true
     }
   ]
 }

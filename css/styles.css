@@ -37,8 +37,11 @@
 
 /* ── Base ───────────────────────────────────── */
 html {
-  /* Prevent horizontal scroll on every screen size */
-  overflow-x: hidden;
+  /* NOTE: overflow-x must NOT be set here — setting it on <html> causes
+     iOS Safari / WebKit to treat the html element as a containing block,
+     which breaks position:fixed (fixed children anchor to the element
+     instead of the viewport and become invisible).
+     Horizontal-scroll prevention is handled on <body> below. */
   width: 100%;
   /* Prevent iOS Safari from auto-scaling text (e.g. in compact inputs) */
   -webkit-text-size-adjust: 100%;
