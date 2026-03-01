@@ -915,7 +915,7 @@ body {
   user-select: none;
 }
 
-/* Extra bottom padding on the app wrapper so content is never hidden behind the panel */
-.app-wrapper {
+/* Extra bottom padding so content is never hidden behind the fixed debug panel */
+.app-container {
   padding-bottom: 100px;
 }
