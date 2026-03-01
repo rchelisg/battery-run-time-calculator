@@ -468,8 +468,11 @@ body {
   padding: 0.15rem var(--spacing-sm);
 }
 
-/* Very very light red on LOAD summary + L(x) cards; Time card keeps default white */
+/* Very very light red on LOAD summary + L(x) cards */
 .load-card:not(.time-card) { background-color: #FFF3F3; }
+
+/* Light green on TIME card — matches REPORT TIME card */
+.time-card { background-color: #E8F5E9; }
 
 /* Vertical "LOADx" label — same rotation as PACK */
 .load-card h2 {
@@ -847,6 +850,15 @@ body {
   font-size: var(--font-size-base); /* 16px — matches PACK entry field */
   font-weight: 700;
   color: var(--color-text);
+}
+
+/* "computed" annotation shown in REPORT PACK card when a value was derived */
+.rpt-computed-note {
+  font-size: 0.7rem;
+  color: var(--color-text-secondary);
+  font-style: italic;
+  padding-left: 0.4rem;
+  text-align: left;
 }
 
 /* ── L(x) card — extra compactness overrides for dynamically created LOAD cards ── */
