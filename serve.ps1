@@ -1,39 +1,14 @@
 # Simple static file server for local testing
-$root    = Split-Path -Parent $MyInvocation.MyCommand.Path
-$port    = 8080
-$pidFile = Join-Path $root '.server.pid'
+$logFile = "C:\Users\User\Documents\AI\Claude\battery-run-time-calculator\.claude\worktrees\confident-brown\serve_debug.log"
+"[$(Get-Date)] serve.ps1 started. PORT=$($env:PORT)" | Out-File $logFile -Append
 
-# ── Kill any previously running server instance ──────────────────────────────
-if (Test-Path $pidFile) {
-  $oldPid = (Get-Content $pidFile -ErrorAction SilentlyContinue) -as [int]
-  if ($oldPid) {
-    $oldProc = Get-Process -Id $oldPid -ErrorAction SilentlyContinue
-    if ($oldProc) {
-      Write-Host "Stopping previous server (PID $oldPid)..."
-      Stop-Process -Id $oldPid -Force
-      Start-Sleep -Milliseconds 400   # allow HTTP.sys to release the prefix
-    }
-  }
-  Remove-Item $pidFile -ErrorAction SilentlyContinue
-}
+$root = Split-Path -Parent $MyInvocation.MyCommand.Path
+$port = if ($env:PORT) { [int]$env:PORT } else { 8082 }
 
-# ── Record current PID so the next run can stop this instance ────────────────
-$PID | Out-File $pidFile
-
-# ── Start listener ────────────────────────────────────────────────────────────
-$listener = [System.Net.HttpListener]::new()
-$listener.Prefixes.Add("http://localhost:$port/")
-try {
-  $listener.Start()
-} catch {
-  Write-Error "Cannot bind to port ${port}: $_"
-  Remove-Item $pidFile -ErrorAction SilentlyContinue
-  exit 1
-}
-Write-Host "Serving $root at http://localhost:$port/"
+"[$(Get-Date)] root=$root port=$port" | Out-File $logFile -Append
 
 $mimeTypes = @{
-  '.html' = 'text/html'
+  '.html' = 'text/html; charset=utf-8'
   '.css'  = 'text/css'
   '.js'   = 'application/javascript'
   '.json' = 'application/json'
@@ -42,6 +17,23 @@ $mimeTypes = @{
 }
 
 try {
+  "[$(Get-Date)] Creating HttpListener..." | Out-File $logFile -Append
+  $listener = [System.Net.HttpListener]::new()
+  $listener.Prefixes.Add("http://localhost:$port/")
+  "[$(Get-Date)] Starting listener on port $port..." | Out-File $logFile -Append
+  $listener.Start()
+  "[$(Get-Date)] Listener started OK" | Out-File $logFile -Append
+} catch {
+  "[$(Get-Date)] ERROR starting listener: $_" | Out-File $logFile -Append
+  Write-Error "Cannot start listener on port ${port}: $_"
+  exit 1
+}
+
+Write-Host "Serving $root at http://localhost:$port/"
+[Console]::Out.Flush()
+
+try {
+  "[$(Get-Date)] Entering request loop" | Out-File $logFile -Append
   while ($listener.IsListening) {
     $ctx  = $listener.GetContext()
     $req  = $ctx.Request
@@ -65,7 +57,11 @@ try {
     }
     $resp.OutputStream.Close()
   }
+} catch {
+  "[$(Get-Date)] ERROR in request loop: $_" | Out-File $logFile -Append
 } finally {
+  "[$(Get-Date)] Stopping listener" | Out-File $logFile -Append
   $listener.Stop()
-  Remove-Item $pidFile -ErrorAction SilentlyContinue
 }
+
+"[$(Get-Date)] serve.ps1 exiting" | Out-File $logFile -Append
