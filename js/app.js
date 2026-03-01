@@ -1401,12 +1401,12 @@ updateReportTime();
 // ─────────────────────────────────────────────
 // DfCost page — dc-prefixed IDs; independent state
 // E=f(T,L) path: given T (run time) and L (load), compute required energy E
-// E = L × T / 60    Emin = Lmax × T / 60    (v1.2)
+// E = L × T / 60    Emax = Lmax × T / 60    (v1.2)
 // ─────────────────────────────────────────────
 
 // ── DC computed energy state (updated by dcUpdateEnergyCard) ──
 let dcComputedE    = NaN;
-let dcComputedEmin = NaN;
+let dcComputedEmax = NaN;
 
 // ── DC PACK elements and state (resolve card: N and C only) ──
 const dcInputN    = document.getElementById('dc-input-N');
@@ -1885,15 +1885,15 @@ function dcRemoveLastLoadCard() {
 // DC energy computation and display (v1.2 E=f(T,L) path)
 // ─────────────────────────────────────────────
 
-// Compute {E, Emin} from TIME (T) and LOAD (L, Lmax).
+// Compute {E, Emax} from TIME (T) and LOAD (L, Lmax).
 // E    = L × T / 60           (nominal required energy, Wh)
-// Emin = Lmax × T / 60        (v1.2: minimum pack energy = worst-case load × nominal T, Wh)
-// Returns {E: NaN, Emin: NaN} when T or L are not yet entered.
+// Emax = Lmax × T / 60        (v1.2: energy requirement under max load condition, Wh)
+// Returns {E: NaN, Emax: NaN} when T or L are not yet entered.
 function dcComputeEnergyValues() {
   const T   = parseFloat(dcInputT.value.trim());
   const lsL = document.getElementById('dc-ls-L').textContent.trim();
   const L   = parseFloat(lsL);
-  if (isNaN(T) || T <= 0 || isNaN(L) || L <= 0) return { E: NaN, Emin: NaN };
+  if (isNaN(T) || T <= 0 || isNaN(L) || L <= 0) return { E: NaN, Emax: NaN };
 
   const lsLmax = document.getElementById('dc-ls-Lmax').textContent.trim();
   const LmaxV  = parseFloat(lsLmax);
@@ -1901,8 +1901,8 @@ function dcComputeEnergyValues() {
 
   const rd2  = v => Math.round(v * 100) / 100;
   const E    = rd2(L * T / 60);
-  const Emin = rd2(Lmax * T / 60);   // v1.2: Lmax × T (not Lmax × Tmax)
-  return { E, Emin };
+  const Emax = rd2(Lmax * T / 60);   // v1.2: Emax = Lmax × T
+  return { E, Emax };
 }
 
 // Render the dc-energy-card.  Also reveals dc-resolve-card and calls dcUpdateResolveCard.
@@ -1912,9 +1912,9 @@ function dcUpdateEnergyCard() {
   const resolveCard = document.getElementById('dc-resolve-card');
   const wrap        = document.getElementById('dc-energy-wrap');
 
-  const { E, Emin } = dcComputeEnergyValues();
+  const { E, Emax } = dcComputeEnergyValues();
   dcComputedE    = E;
-  dcComputedEmin = Emin;
+  dcComputedEmax = Emax;
 
   if (isNaN(E)) {
     energyCard.style.display  = 'none';
@@ -1925,19 +1925,19 @@ function dcUpdateEnergyCard() {
   energyCard.style.display  = '';
   resolveCard.style.display = '';
 
-  const showEmin = Math.abs(Emin - E) > 0.005;
+  const showEmax = Math.abs(Emax - E) > 0.005;
   let html = '<div class="rpt-heading">Required Energy</div>';
   html += '<table class="rpt-table"><tbody>';
-  if (showEmin) {
+  if (showEmax) {
     html += '<tr class="rpt-col-hdr">'
           + '<td class="rpt-td-lbl"></td>'
           + '<td class="rpt-td-num">Nom</td>'
-          + '<td class="rpt-td-num">Worst</td>'
+          + '<td class="rpt-td-num">Max</td>'
           + '<td class="rpt-td-unit"></td></tr>';
     html += '<tr class="rpt-time-row">'
           + '<td class="rpt-td-lbl">Energy</td>'
           + `<td class="rpt-td-num">${E}</td>`
-          + `<td class="rpt-td-num">${Emin}</td>`
+          + `<td class="rpt-td-num">${Emax}</td>`
           + '<td class="rpt-td-unit">Wh</td></tr>';
   } else {
     html += '<tr class="rpt-time-row">'
@@ -1955,13 +1955,13 @@ function dcUpdateEnergyCard() {
 // Render the pack sizing result inside dc-resolve-card.
 // If N is given → compute required cell capacity C = E × 1000 / (N × 3.6).
 // If C is given (and N empty/invalid) → compute minimum cell count N = ⌈E × 1000 / (3.6 × C)⌉.
-// Shows both nominal (E) and worst-case (Emin) results when they differ.
+// Shows both nominal (E) and max-load (Emax) results when they differ.
 function dcUpdateResolveCard() {
   const wrap = document.getElementById('dc-resolve-wrap');
   if (!wrap) return;
 
   const E    = dcComputedE;
-  const Emin = dcComputedEmin;
+  const Emax = dcComputedEmax;
   if (isNaN(E)) { wrap.innerHTML = ''; return; }
 
   const N   = parseInt(dcInputN.value.trim(), 10);
@@ -1972,23 +1972,23 @@ function dcUpdateResolveCard() {
   if (!nOk && !cOk) { wrap.innerHTML = ''; return; }
 
   const rd0      = v => Math.round(v);
-  const showEmin = Math.abs(Emin - E) > 0.005;
+  const showEmax = Math.abs(Emax - E) > 0.005;
   let html = '<table class="rpt-table"><tbody>';
 
   if (nOk) {
     // User provided N → compute required cell capacity
     const C_nom = rd0(E    * 1000 / (N * 3.6));
-    const C_wc  = rd0(Emin * 1000 / (N * 3.6));
-    if (showEmin) {
+    const C_max = rd0(Emax * 1000 / (N * 3.6));
+    if (showEmax) {
       html += '<tr class="rpt-col-hdr">'
             + '<td class="rpt-td-lbl"></td>'
             + '<td class="rpt-td-num">Nom</td>'
-            + '<td class="rpt-td-num">Worst</td>'
+            + '<td class="rpt-td-num">Max</td>'
             + '<td class="rpt-td-unit"></td></tr>';
       html += '<tr class="rpt-time-row">'
             + '<td class="rpt-td-lbl">Cell Cap</td>'
             + `<td class="rpt-td-num">${C_nom}</td>`
-            + `<td class="rpt-td-num">${C_wc}</td>`
+            + `<td class="rpt-td-num">${C_max}</td>`
             + '<td class="rpt-td-unit">mAh</td></tr>';
     } else {
       html += '<tr class="rpt-time-row">'
@@ -2000,17 +2000,17 @@ function dcUpdateResolveCard() {
   } else {
     // User provided C → compute required cell count (rounded up)
     const N_nom = Math.ceil(E    * 1000 / (3.6 * C));
-    const N_wc  = Math.ceil(Emin * 1000 / (3.6 * C));
-    if (showEmin) {
+    const N_max = Math.ceil(Emax * 1000 / (3.6 * C));
+    if (showEmax) {
       html += '<tr class="rpt-col-hdr">'
             + '<td class="rpt-td-lbl"></td>'
             + '<td class="rpt-td-num">Nom</td>'
-            + '<td class="rpt-td-num">Worst</td>'
+            + '<td class="rpt-td-num">Max</td>'
             + '<td class="rpt-td-unit"></td></tr>';
       html += '<tr class="rpt-time-row">'
             + '<td class="rpt-td-lbl">Cells</td>'
             + `<td class="rpt-td-num">${N_nom}</td>`
-            + `<td class="rpt-td-num">${N_wc}</td>`
+            + `<td class="rpt-td-num">${N_max}</td>`
             + '<td class="rpt-td-unit"></td></tr>';
     } else {
       html += '<tr class="rpt-time-row">'
@@ -2030,7 +2030,7 @@ function dcUpdateResolveCard() {
 function dcResetPage() {
   // Reset stored energy values
   dcComputedE    = NaN;
-  dcComputedEmin = NaN;
+  dcComputedEmax = NaN;
 
   // Hide result cards; clear their content
   const energyCard  = document.getElementById('dc-energy-card');
@@ -2219,10 +2219,10 @@ function dtUpdateResult() {
     const rd2  = v => Math.round(v * 100) / 100;
     const E    = rd2(l * tNom / 60);
 
-    // v1.2: Emin = Lmax × T / 60  (worst-case load × nominal run time)
+    // v1.2: Emax = Lmax × T / 60  (energy requirement under max load condition)
     const lmaxV   = parseFloat(lsLmax);
     const Lmax    = (lsLmax !== '—' && !isNaN(lmaxV) && lmaxV > 0) ? lmaxV : l;
-    const Emin    = rd2(Lmax * tNom / 60);
+    const Emax    = rd2(Lmax * tNom / 60);
 
     // N / C resolve — check current input values
     const nV  = parseInt(dtInputN.value.trim(), 10);
@@ -2233,8 +2233,8 @@ function dtUpdateResult() {
     const cOkUser = !dtInputC.disabled && !isNaN(cV) && cV >= 100 && cV <= 8000 && dtPackErrors.C === '';
 
     const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-    const eminRow = Emin > E
-      ? `<tr><td class="rpt-td-lbl">Min Energy</td><td class="rpt-td-num">${esc(String(Emin))}</td><td></td><td></td><td class="rpt-td-unit">Wh</td></tr>`
+    const emaxRow = Emax > E
+      ? `<tr><td class="rpt-td-lbl">Max Energy</td><td class="rpt-td-num">${esc(String(Emax))}</td><td></td><td></td><td class="rpt-td-unit">Wh</td></tr>`
       : '';
 
     if (nOk) {
@@ -2247,7 +2247,7 @@ function dtUpdateResult() {
         <div class="rpt-heading">Pack Solution</div>
         <table class="rpt-table"><tbody>
           <tr><td class="rpt-td-lbl">Energy</td><td class="rpt-td-num">${esc(String(E))}</td><td></td><td></td><td class="rpt-td-unit">Wh</td></tr>
-          ${eminRow}
+          ${emaxRow}
           <tr class="rpt-gap"><td colspan="5"></td></tr>
           <tr><td class="rpt-td-lbl">Cells</td><td class="rpt-td-num">${esc(String(nV))}</td><td></td><td></td><td class="rpt-td-unit"></td></tr>
           <tr><td class="rpt-td-lbl">Cell Cap</td><td class="rpt-td-num">${esc(String(computedC))}</td><td colspan="2" class="rpt-computed-note">computed</td><td class="rpt-td-unit">mAh</td></tr>
@@ -2263,7 +2263,7 @@ function dtUpdateResult() {
         <div class="rpt-heading">Pack Solution</div>
         <table class="rpt-table"><tbody>
           <tr><td class="rpt-td-lbl">Energy</td><td class="rpt-td-num">${esc(String(E))}</td><td></td><td></td><td class="rpt-td-unit">Wh</td></tr>
-          ${eminRow}
+          ${emaxRow}
           <tr class="rpt-gap"><td colspan="5"></td></tr>
           <tr><td class="rpt-td-lbl">Cells</td><td class="rpt-td-num">${esc(String(computedN))}</td><td colspan="2" class="rpt-computed-note">computed</td><td class="rpt-td-unit"></td></tr>
           <tr><td class="rpt-td-lbl">Cell Cap</td><td class="rpt-td-num">${esc(String(cV))}</td><td></td><td></td><td class="rpt-td-unit">mAh</td></tr>
@@ -2273,7 +2273,7 @@ function dtUpdateResult() {
       // Neither N nor C entered yet — show E and prompt
       dtInputN.disabled = false;
       dtInputC.disabled = false;
-      el.textContent = `Energy: ${E} Wh${Emin > E ? ' (min ' + Emin + ' Wh)' : ''} — enter N or C in PACK above`;
+      el.textContent = `Energy: ${E} Wh${Emax > E ? ' (max ' + Emax + ' Wh)' : ''} — enter N or C in PACK above`;
     }
   }
 }
