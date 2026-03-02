@@ -2175,7 +2175,15 @@ function dtSetMode(mode) {
   if (mode === 'time') {
     document.getElementById('dt-load-group').style.display = 'none';
   }
-  // Path B ('load'): PACK card stays visible — user enters N or C to resolve E
+  // Path B ('load'): only N is enterable — grey out C / Cmin / Cmax immediately
+  if (mode === 'load') {
+    dtInputC.disabled    = true;
+    dtInputC.value       = '';
+    dtInputCmin.disabled = true;
+    dtInputCmin.value    = '';
+    dtInputCmax.disabled = true;
+    dtInputCmax.value    = '';
+  }
   dtUpdateResult();
 }
 
@@ -2313,13 +2321,9 @@ function dtUpdateResult() {
     const Lmax    = (lsLmax !== '—' && !isNaN(lmaxV) && lmaxV > 0) ? lmaxV : l;
     const Emax    = rd2(Lmax * tNom / 60);
 
-    // N / C resolve — check current input values
+    // N resolve only — C/Cmin/Cmax are greyed out on this path (locked in dtSetMode)
     const nV  = parseInt(dtInputN.value.trim(), 10);
     const nOk = Number.isInteger(nV) && nV >= 1 && nV <= 8 && dtPackErrors.N === '';
-    // C: only "user-entered" when the input is not disabled
-    const cRawB  = dtInputC.value.trim();
-    const cV     = parseFloat(cRawB);
-    const cOkUser = !dtInputC.disabled && !isNaN(cV) && cV >= 100 && cV <= 8000 && dtPackErrors.C === '';
 
     const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     const emaxRow = Emax > E
@@ -2333,8 +2337,8 @@ function dtUpdateResult() {
       dbg.L    = lsL; dbg.Lmin = document.getElementById('dt-ls-Lmin').textContent.trim();
       dbg.Lmax = lsLmax;
       dbg.E    = String(E); dbg.Emin = '—'; dbg.Emax = String(Emax);
-      dbg.C    = CVal !== undefined ? String(CVal) : dtInputC.value.trim();
-      dbg.Cmin = dtInputCmin.value.trim(); dbg.Cmax = dtInputCmax.value.trim();
+      dbg.C    = CVal !== undefined ? String(CVal) : '—';
+      dbg.Cmin = '—'; dbg.Cmax = '—';
       dbg.N    = NVal !== undefined ? String(NVal) : dtInputN.value.trim();
       dbg.NN   = NNVal !== undefined ? String(Math.round(NNVal * 100) / 100) : '—';
       refreshDebug();
@@ -2345,10 +2349,9 @@ function dtUpdateResult() {
       //                 Cmax = Emax × 1000 / (N × 3.6)  (cell cap required under max-load condition)
       const computedC    = Math.round(E    * 1000 / (nV * 3.6));
       const computedCmax = Math.round(Emax * 1000 / (nV * 3.6));
-      dtInputC.disabled    = true;
-      dtInputC.value       = String(computedC);
-      dtInputCmax.disabled = true;
-      dtInputCmax.value    = String(computedCmax);
+      // Show computed C / Cmax in the (disabled) input fields for reference
+      dtInputC.value    = String(computedC);
+      dtInputCmax.value = String(computedCmax);
 
       const showCmax   = computedCmax > computedC;
       const cmaxColHdr = showCmax
@@ -2370,30 +2373,12 @@ function dtUpdateResult() {
         </tbody></table>`;
       dbgSetEfTL(nV, computedC, undefined);
 
-    } else if (cOkUser) {
-      // C given (user-entered, not disabled) → compute N = ⌈E × 1000 / (3.6 × C)⌉
-      const nnRaw    = E * 1000 / (3.6 * cV);
-      const computedN = Math.ceil(nnRaw);
-      dtInputN.disabled = true;
-      dtInputN.value    = String(computedN);
-
-      el.innerHTML = `
-        <div class="rpt-heading">Pack Solution</div>
-        <table class="rpt-table"><tbody>
-          <tr><td class="rpt-td-lbl">Energy</td><td class="rpt-td-num">${esc(String(E))}</td><td></td><td></td><td class="rpt-td-unit">Wh</td></tr>
-          ${emaxRow}
-          <tr class="rpt-gap"><td colspan="5"></td></tr>
-          <tr><td class="rpt-td-lbl">Cells</td><td class="rpt-td-num">${esc(String(computedN))}</td><td colspan="2" class="rpt-computed-note">computed</td><td class="rpt-td-unit"></td></tr>
-          <tr><td class="rpt-td-lbl">Cell Cap</td><td class="rpt-td-num">${esc(String(cV))}</td><td></td><td></td><td class="rpt-td-unit">mAh</td></tr>
-        </tbody></table>`;
-      dbgSetEfTL(computedN, cV, nnRaw);
-
     } else {
-      // Neither N nor C entered yet — show E and prompt
-      dtInputN.disabled    = false;
-      dtInputC.disabled    = false;
-      dtInputCmax.disabled = false;
-      el.textContent = `Energy: ${E} Wh${Emax > E ? ' (max ' + Emax + ' Wh)' : ''} — enter N or C in PACK above`;
+      // N not yet entered — show E and prompt; N is the only enterable field
+      dtInputN.disabled = false;   // ensure N stays enabled (C/Cmin/Cmax remain disabled)
+      dtInputC.value    = '';      // keep greyed fields clear until N is known
+      dtInputCmax.value = '';
+      el.textContent = `Energy: ${E} Wh${Emax > E ? ' (max ' + Emax + ' Wh)' : ''} — enter N (cells) in PACK above`;
       dbgSetEfTL(undefined, undefined, undefined);
     }
   }
@@ -2942,9 +2927,10 @@ function dtResetPage() {
   dtOutputEl.style.backgroundColor = '';   // clear any inline colour set by Path B
   dtOutputEl.textContent = '';
 
-  // Re-enable N, C, Cmax in case Path B (E=f(T,L)) disabled them for resolve
+  // Re-enable all PACK fields (Path B greys out C/Cmin/Cmax; Path A may disable N)
   dtInputN.disabled    = false;
   dtInputC.disabled    = false;
+  dtInputCmin.disabled = false;
   dtInputCmax.disabled = false;
 
   // Reset DT PACK — no defaults; user must enter all values
