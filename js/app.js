@@ -2533,7 +2533,8 @@ dtInputCmax.dataset.lastValid = dtInputCmax.value;
 dtInputN.addEventListener('blur', () => {
   blurValidate(dtInputN, validateDtN);
   if (!dtPackLoadVisible) return;
-  if (dtInputN.value.trim() !== '') dtSetMode('time');   // lock Path A (no-op if already locked)
+  // N is neutral — it is the resolve input for Path B (load) AND contributes to Path A (time).
+  // Do NOT call dtSetMode here; mode is locked by C/Cmin/Cmax entry (→'time') or L entry (→'load').
   if (dtMode !== null) dtUpdateResult();
 });
 
